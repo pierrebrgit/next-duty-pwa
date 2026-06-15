@@ -2,7 +2,7 @@ import { Workbox } from 'workbox-window';
 
 export function register() {
   if ('serviceWorker' in navigator) {
-    const wb = new Workbox(`${process.env.PUBLIC_URL}/service-worker.js`);
+    const wb = new Workbox(`${import.meta.env.BASE_URL}service-worker.js`);
 
     wb.addEventListener('installed', (event) => {
       if (event.isUpdate) {

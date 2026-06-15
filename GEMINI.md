@@ -17,7 +17,7 @@
 - `public/manifest.json`: PWA configuration (icons, standalone mode).
 
 ## Workflow Preferences
-- **Builds**: Always run `npm run build` after UI changes to update the PWA bundle.
+- **Builds**: Always run `npm run build` after UI changes before deploying. The generated `build/` folder is local-only and ignored by Git.
 - **Deployment**: Deployment is handled via `firebase deploy --only hosting`.
 - **Sync**: Roster parsing is performed by an external Firebase Function (separate project); this app only consumes the JSON result.
 

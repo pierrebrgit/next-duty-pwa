@@ -17,7 +17,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { fetchProfileRoster } from '../api/api';
-import { saveProfile, loadProfile } from '../utils/storage';
+import { saveProfile, loadProfile, setLastSyncTimestamp } from '../utils/storage';
 import { UserProfile } from '../types';
 
 const muiTheme = createTheme({ palette: { mode: 'dark' } });
@@ -58,6 +58,7 @@ export default function Settings() {
       );
       const updatedProfile = { ...profile, rotations: roster.rotations };
       saveProfile(updatedProfile);
+      setLastSyncTimestamp();
       setProfile(updatedProfile);
     } catch (err) {
       console.error(err);

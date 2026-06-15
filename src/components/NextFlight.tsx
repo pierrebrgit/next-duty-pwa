@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from "react-router-dom";
 import Timeline from '@mui/lab/Timeline';
 import TimelineItem from '@mui/lab/TimelineItem';
@@ -53,10 +53,15 @@ const AntSwitch = styled(Switch)(({ theme }) => ({
 
 const airportZone = (airport: string) => {
   const zones: Record<string, string> = {
-    ORY: "Europe/Paris", TLS: "Europe/Paris",
+    ORY: "Europe/Paris", TLS: "Europe/Paris", CDG: "Europe/Paris", CHR: "Europe/Paris",
     LAX: "America/Los_Angeles", SFO: "America/Los_Angeles",
     EWR: "America/New_York", RUN: "Indian/Reunion",
-    PPT: "Pacific/Tahiti", MIA: "America/New_York", CUN: "America/Cancun"
+    PPT: "Pacific/Tahiti", MIA: "America/New_York", CUN: "America/Cancun",
+    JIB: "Africa/Djibouti", BUD: "Europe/Budapest", MLE: "Indian/Maldives",
+    CMB: "Asia/Colombo", RML: "Asia/Colombo", NOU: "Pacific/Noumea",
+    GEA: "Pacific/Noumea", MRU: "Indian/Mauritius", DXB: "Asia/Dubai",
+    DWC: "Asia/Dubai", PUJ: "America/Santo_Domingo", PVR: "America/Mexico_City",
+    SID: "Atlantic/Cape_Verde"
   };
   return zones[airport] || "Europe/Paris";
 };
@@ -99,6 +104,13 @@ const getSyncStatus = (timestamp: string | null) => {
     return { text: `Outdated sync (${dateStr})`, color: 'warning.main' };
 };
 
+const formatFlightNumber = (flightNumber: string) => {
+  const value = flightNumber.trim().toUpperCase();
+  if (!value) return '';
+  if (/^\d+$/.test(value)) return `BF${value}`;
+  return value;
+};
+
 export default function NextFlight() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -108,6 +120,33 @@ export default function NextFlight() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isUTC, setIsUTC] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  const goToPreviousFlight = useCallback(() => {
+    setCurrentIndex(i => Math.max(0, i - 1));
+  }, []);
+
+  const goToNextFlight = useCallback(() => {
+    setCurrentIndex(i => Math.min(allFlights.length - 1, i + 1));
+  }, [allFlights.length]);
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    const touch = event.touches[0];
+    touchStart.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent) => {
+    if (!touchStart.current) return;
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - touchStart.current.x;
+    const deltaY = touch.clientY - touchStart.current.y;
+    touchStart.current = null;
+
+    if (Math.abs(deltaX) < 50 || Math.abs(deltaY) > 75) return;
+    if (deltaX < 0) goToNextFlight();
+    else goToPreviousFlight();
+  };
 
   const loadLocalData = () => {
     const data = loadProfile();
@@ -170,6 +209,7 @@ export default function NextFlight() {
   }
 
   const flight = allFlights[currentIndex];
+  const flightLabel = formatFlightNumber(flight.flightNumber);
   const startDate = new Date(flight.startDate);
   const depTime = new Date(startDate.getTime() + 90 * 60 * 1000);
   const reportTime = new Date(startDate);
@@ -227,15 +267,20 @@ export default function NextFlight() {
             </IconButton>
           </Stack>
 
-          <Card variant="outlined" sx={{ borderRadius: 4, minHeight: '440px' }}>
+          <Card
+            variant="outlined"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            sx={{ borderRadius: 4, minHeight: '440px', touchAction: 'pan-y' }}
+          >
             <CardContent sx={{ p: 2, "&:last-child": { pb: 3 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, height: '80px' }}>
-                <IconButton disabled={currentIndex === 0} onClick={() => setCurrentIndex(i => i - 1)}><NavigateBeforeIcon /></IconButton>
-                <Stack alignItems="center">
-                    <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1, mt: 1, fontSize: '0.7rem', letterSpacing: 1.5 }}>BF{flight.flightNumber}</Typography>
+                <IconButton disabled={currentIndex === 0} onClick={goToPreviousFlight}><NavigateBeforeIcon /></IconButton>
+                <Stack alignItems="center" spacing={0.25}>
+                    <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1, mt: 1, fontSize: '0.7rem', letterSpacing: 1.5 }}>{flightLabel}</Typography>
                     <Typography variant="h5" align="center" sx={{ fontWeight: 'bold' }}>{flight.origin} &#x2192; {flight.destination}</Typography>
                 </Stack>
-                <IconButton disabled={currentIndex === allFlights.length - 1} onClick={() => setCurrentIndex(i => i + 1)}><NavigateNextIcon /></IconButton>
+                <IconButton disabled={currentIndex === allFlights.length - 1} onClick={goToNextFlight}><NavigateNextIcon /></IconButton>
               </Stack>
               
               <Typography variant="caption" display="block" align="center" sx={{ mb: 2, color: 'primary.main', fontWeight: 500 }}>{countdown(flight.startDate, flight.endDate)}</Typography>
@@ -278,7 +323,7 @@ export default function NextFlight() {
                     <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1, position: 'relative' }} align="right">
                         <Typography variant="subtitle2">Departure</Typography>
                         <Box sx={{ position: 'absolute', bottom: -12, right: 8, bgcolor: 'background.paper', px: 0.5, zIndex: 1 }}>
-                            <Typography variant="caption" color="text.secondary">BF{flight.flightNumber}</Typography>
+                            <Typography variant="caption" color="text.secondary">{flightLabel}</Typography>
                         </Box>
                     </TimelineOppositeContent>
                     <TimelineSeparator>

@@ -49,6 +49,7 @@ A standalone, personal Progressive Web App (PWA) designed for flight crew to vie
 
 ## 🛠 Tech Stack
 - **React** (TypeScript)
+- **Vite** (development server and production build)
 - **Material UI** (Timeline & Layout)
 - **Firebase Hosting** (Web hosting)
 - **Firebase Cloud Functions** (Roster parsing logic)

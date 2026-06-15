@@ -8,29 +8,23 @@
     "@mui/icons-material": "^5.10.9",
     "@mui/lab": "^5.0.0-alpha.103",
     "@mui/material": "^5.10.9",
-    "@types/node": "^18.11.18",
+    "@types/node": "^22.12.0",
     "@types/react": "^18.0.27",
     "@types/react-dom": "^18.0.10",
-    "axios": "^1.1.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.4.2",
-    "react-scripts": "^5.0.1",
+    "react-router-dom": "^6.30.1",
     "react-toastify": "^9.0.8",
-    "typescript": "^4.9.5",
+    "typescript": "^5.7.3",
     "web-vitals": "^2.1.4",
     "workbox-window": "^6.5.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
+    "start": "vite --host 0.0.0.0",
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run"
   },
   "browserslist": {
     "production": [
@@ -45,6 +39,8 @@
     ]
   },
   "devDependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11"
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.0"
   }
 }
