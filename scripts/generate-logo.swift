@@ -67,31 +67,72 @@ func topRoundedRect(_ rect: CGRect, radius: CGFloat) -> CGPath {
 
 func drawPlane(in context: CGContext) {
   context.saveGState()
-  context.setFillColor(Color(0x4b5563).cgColor)
+  context.setFillColor(Color(0x173245).cgColor)
+
+  context.addPath(
+    CGPath(
+      roundedRect: CGRect(x: 286, y: 730, width: 452, height: 46),
+      cornerWidth: 4,
+      cornerHeight: 4,
+      transform: nil
+    )
+  )
+  context.fillPath()
 
   let plane = CGMutablePath()
-  plane.move(to: CGPoint(x: 284, y: 674))
-  plane.addLine(to: CGPoint(x: 365, y: 625))
-  plane.addLine(to: CGPoint(x: 326, y: 535))
-  plane.addLine(to: CGPoint(x: 416, y: 598))
-  plane.addLine(to: CGPoint(x: 628, y: 558))
+  plane.move(to: CGPoint(x: 258, y: 615))
   plane.addCurve(
-    to: CGPoint(x: 735, y: 574),
-    control1: CGPoint(x: 677, y: 548),
-    control2: CGPoint(x: 719, y: 554)
+    to: CGPoint(x: 365, y: 557),
+    control1: CGPoint(x: 299, y: 598),
+    control2: CGPoint(x: 329, y: 579)
+  )
+  plane.addLine(to: CGPoint(x: 292, y: 494))
+  plane.addCurve(
+    to: CGPoint(x: 304, y: 474),
+    control1: CGPoint(x: 282, y: 485),
+    control2: CGPoint(x: 288, y: 476)
+  )
+  plane.addLine(to: CGPoint(x: 344, y: 469))
+  plane.addCurve(
+    to: CGPoint(x: 382, y: 489),
+    control1: CGPoint(x: 357, y: 468),
+    control2: CGPoint(x: 370, y: 477)
+  )
+  plane.addLine(to: CGPoint(x: 438, y: 535))
+  plane.addCurve(
+    to: CGPoint(x: 513, y: 535),
+    control1: CGPoint(x: 461, y: 554),
+    control2: CGPoint(x: 489, y: 553)
+  )
+  plane.addLine(to: CGPoint(x: 652, y: 445))
+  plane.addCurve(
+    to: CGPoint(x: 766, y: 402),
+    control1: CGPoint(x: 691, y: 420),
+    control2: CGPoint(x: 731, y: 400)
   )
   plane.addCurve(
-    to: CGPoint(x: 646, y: 620),
-    control1: CGPoint(x: 719, y: 604),
-    control2: CGPoint(x: 686, y: 619)
+    to: CGPoint(x: 789, y: 430),
+    control1: CGPoint(x: 793, y: 404),
+    control2: CGPoint(x: 802, y: 416)
   )
-  plane.addLine(to: CGPoint(x: 598, y: 627))
-  plane.addLine(to: CGPoint(x: 523, y: 777))
-  plane.addLine(to: CGPoint(x: 451, y: 801))
-  plane.addLine(to: CGPoint(x: 506, y: 640))
-  plane.addLine(to: CGPoint(x: 382, y: 690))
-  plane.addLine(to: CGPoint(x: 298, y: 722))
-  plane.addLine(to: CGPoint(x: 309, y: 686))
+  plane.addCurve(
+    to: CGPoint(x: 700, y: 489),
+    control1: CGPoint(x: 774, y: 449),
+    control2: CGPoint(x: 744, y: 469)
+  )
+  plane.addLine(to: CGPoint(x: 638, y: 518))
+  plane.addLine(to: CGPoint(x: 657, y: 552))
+  plane.addLine(to: CGPoint(x: 623, y: 568))
+  plane.addLine(to: CGPoint(x: 588, y: 540))
+  plane.addLine(to: CGPoint(x: 430, y: 609))
+  plane.addLine(to: CGPoint(x: 318, y: 670))
+  plane.addLine(to: CGPoint(x: 338, y: 618))
+  plane.addLine(to: CGPoint(x: 277, y: 637))
+  plane.addCurve(
+    to: CGPoint(x: 258, y: 615),
+    control1: CGPoint(x: 261, y: 642),
+    control2: CGPoint(x: 251, y: 628)
+  )
   plane.closeSubpath()
 
   context.addPath(plane)
