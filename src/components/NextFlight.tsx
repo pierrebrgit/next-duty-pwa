@@ -211,9 +211,6 @@ function FlightCard({
               <TimelineItem>
               <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1, position: 'relative' }} align="right">
                   <Typography variant="subtitle2">Departure</Typography>
-                  <Box sx={{ position: 'absolute', bottom: -12, right: 8, bgcolor: 'background.paper', px: 0.5, zIndex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">{flightLabel}</Typography>
-                  </Box>
               </TimelineOppositeContent>
               <TimelineSeparator>
                   <TimelineConnector />
