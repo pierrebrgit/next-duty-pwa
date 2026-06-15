@@ -114,6 +114,18 @@ const formatFlightNumber = (flightNumber: string) => {
   return value;
 };
 
+const SWIPE_THRESHOLD_PX = 70;
+const SWIPE_DIRECTION_LOCK_PX = 12;
+const SWIPE_ANIMATION_MS = 180;
+const SWIPE_EDGE_RESISTANCE = 0.25;
+const SWIPE_EDGE_MAX_OFFSET_PX = 44;
+
+type TouchGesture = {
+  x: number;
+  y: number;
+  mode: 'pending' | 'horizontal' | 'vertical';
+};
+
 export default function NextFlight() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -123,7 +135,13 @@ export default function NextFlight() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isUTC, setIsUTC] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isSwipeAnimating, setIsSwipeAnimating] = useState(false);
+  const [skipSwipeTransition, setSkipSwipeTransition] = useState(false);
+  const touchStart = useRef<TouchGesture | null>(null);
+  const slideOutTimer = useRef<number | null>(null);
+  const slideEndTimer = useRef<number | null>(null);
 
   const goToPreviousFlight = useCallback(() => {
     setCurrentIndex(i => Math.max(0, i - 1));
@@ -137,9 +155,94 @@ export default function NextFlight() {
     setCurrentIndex(getNextDutyIndex(allFlights));
   }, [allFlights]);
 
+  const clearSwipeTimers = useCallback(() => {
+    if (slideOutTimer.current !== null) {
+      window.clearTimeout(slideOutTimer.current);
+      slideOutTimer.current = null;
+    }
+    if (slideEndTimer.current !== null) {
+      window.clearTimeout(slideEndTimer.current);
+      slideEndTimer.current = null;
+    }
+  }, []);
+
+  const getSlideDistance = () => {
+    return Math.max(360, Math.min(window.innerWidth * 1.15, 560));
+  };
+
+  const resetSwipe = useCallback(() => {
+    touchStart.current = null;
+    setIsDragging(false);
+    setSkipSwipeTransition(false);
+    setDragOffset(0);
+  }, []);
+
+  const animateSwipeToFlight = useCallback((direction: -1 | 1) => {
+    clearSwipeTimers();
+    touchStart.current = null;
+
+    const slideDistance = getSlideDistance();
+    const exitOffset = direction === 1 ? -slideDistance : slideDistance;
+    const entryOffset = direction === 1 ? slideDistance : -slideDistance;
+
+    setIsDragging(false);
+    setIsSwipeAnimating(true);
+    setSkipSwipeTransition(false);
+    setDragOffset(exitOffset);
+
+    slideOutTimer.current = window.setTimeout(() => {
+      setSkipSwipeTransition(true);
+      setCurrentIndex(i => Math.max(0, Math.min(allFlights.length - 1, i + direction)));
+      setDragOffset(entryOffset);
+
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          setSkipSwipeTransition(false);
+          setDragOffset(0);
+        });
+      });
+    }, SWIPE_ANIMATION_MS);
+
+    slideEndTimer.current = window.setTimeout(() => {
+      setIsSwipeAnimating(false);
+      setSkipSwipeTransition(false);
+      setDragOffset(0);
+    }, SWIPE_ANIMATION_MS * 2 + 40);
+  }, [allFlights.length, clearSwipeTimers]);
+
   const handleTouchStart = (event: React.TouchEvent) => {
+    if (isSwipeAnimating) return;
     const touch = event.touches[0];
-    touchStart.current = { x: touch.clientX, y: touch.clientY };
+    touchStart.current = { x: touch.clientX, y: touch.clientY, mode: 'pending' };
+    setSkipSwipeTransition(true);
+    setDragOffset(0);
+  };
+
+  const handleTouchMove = (event: React.TouchEvent) => {
+    if (!touchStart.current || isSwipeAnimating) return;
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - touchStart.current.x;
+    const deltaY = touch.clientY - touchStart.current.y;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    if (touchStart.current.mode === 'pending' &&
+        (absX > SWIPE_DIRECTION_LOCK_PX || absY > SWIPE_DIRECTION_LOCK_PX)) {
+      touchStart.current.mode = absX > absY * 1.2 ? 'horizontal' : 'vertical';
+    }
+
+    if (touchStart.current.mode !== 'horizontal') return;
+    if (event.cancelable) event.preventDefault();
+
+    const isBeforeFirstFlight = currentIndex === 0 && deltaX > 0;
+    const isAfterLastFlight = currentIndex === allFlights.length - 1 && deltaX < 0;
+    const nextOffset = isBeforeFirstFlight || isAfterLastFlight ?
+      Math.sign(deltaX) * Math.min(absX * SWIPE_EDGE_RESISTANCE, SWIPE_EDGE_MAX_OFFSET_PX) :
+      deltaX;
+
+    setIsDragging(true);
+    setDragOffset(nextOffset);
   };
 
   const handleTouchEnd = (event: React.TouchEvent) => {
@@ -148,11 +251,29 @@ export default function NextFlight() {
     const touch = event.changedTouches[0];
     const deltaX = touch.clientX - touchStart.current.x;
     const deltaY = touch.clientY - touchStart.current.y;
-    touchStart.current = null;
+    const wasHorizontalSwipe = touchStart.current.mode === 'horizontal';
 
-    if (Math.abs(deltaX) < 50 || Math.abs(deltaY) > 75) return;
-    if (deltaX < 0) goToNextFlight();
-    else goToPreviousFlight();
+    if (!wasHorizontalSwipe || Math.abs(deltaY) > 75 ||
+        Math.abs(deltaX) < SWIPE_THRESHOLD_PX) {
+      resetSwipe();
+      return;
+    }
+
+    if (deltaX < 0 && currentIndex < allFlights.length - 1) {
+      animateSwipeToFlight(1);
+      return;
+    }
+
+    if (deltaX > 0 && currentIndex > 0) {
+      animateSwipeToFlight(-1);
+      return;
+    }
+
+    resetSwipe();
+  };
+
+  const handleTouchCancel = () => {
+    resetSwipe();
   };
 
   const loadLocalData = () => {
@@ -172,6 +293,10 @@ export default function NextFlight() {
     loadLocalData();
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    return () => clearSwipeTimers();
+  }, [clearSwipeTimers]);
 
   const handleQuickSync = async () => {
     if (!profile?.webcal || !profile?.base) return;
@@ -277,8 +402,19 @@ export default function NextFlight() {
           <Card
             variant="outlined"
             onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            sx={{ borderRadius: 4, minHeight: '440px', touchAction: 'pan-y' }}
+            onTouchCancel={handleTouchCancel}
+            sx={{
+              borderRadius: 4,
+              minHeight: '440px',
+              touchAction: 'pan-y',
+              transform: `translateX(${dragOffset}px) rotate(${dragOffset / 90}deg)`,
+              transition: isDragging || skipSwipeTransition ?
+                'none' :
+                `transform ${SWIPE_ANIMATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+              willChange: 'transform',
+            }}
           >
             <CardContent sx={{ p: 2, "&:last-child": { pb: 3 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, height: '80px' }}>
