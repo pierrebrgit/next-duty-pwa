@@ -1,8 +1,9 @@
-const CACHE_NAME = 'next-duty-v3';
+const CACHE_NAME = 'next-duty-v4';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/favicon.png',
   '/favicon.ico',
   '/logo192.png',
   '/logo512.png',
