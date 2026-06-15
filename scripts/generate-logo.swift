@@ -65,79 +65,168 @@ func topRoundedRect(_ rect: CGRect, radius: CGFloat) -> CGPath {
   return path
 }
 
-func drawPlane(in context: CGContext) {
-  context.saveGState()
-  context.setFillColor(Color(0x173245).cgColor)
+func makeSilhouetteImage(sourcePath: String, tint: Color) throws -> CGImage {
+  guard let source = NSImage(contentsOfFile: sourcePath),
+        let sourceImage = source.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+    throw NSError(domain: "LogoGenerator", code: 1)
+  }
 
-  context.addPath(
-    CGPath(
-      roundedRect: CGRect(x: 286, y: 730, width: 452, height: 46),
-      cornerWidth: 4,
-      cornerHeight: 4,
-      transform: nil
+  let width = sourceImage.width
+  let height = sourceImage.height
+  let bytesPerPixel = 4
+  let bytesPerRow = width * bytesPerPixel
+  let colorSpace = CGColorSpaceCreateDeviceRGB()
+  var input = [UInt8](repeating: 0, count: height * bytesPerRow)
+
+  guard let inputContext = CGContext(
+    data: &input,
+    width: width,
+    height: height,
+    bitsPerComponent: 8,
+    bytesPerRow: bytesPerRow,
+    space: colorSpace,
+    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+  ) else {
+    throw NSError(domain: "LogoGenerator", code: 2)
+  }
+
+  inputContext.draw(
+    sourceImage,
+    in: CGRect(x: 0, y: 0, width: width, height: height)
+  )
+
+  var minX = width
+  var minY = height
+  var maxX = 0
+  var maxY = 0
+  let threshold = 225
+
+  for y in 0..<height {
+    for x in 0..<width {
+      let index = y * bytesPerRow + x * bytesPerPixel
+      let red = Int(input[index])
+      let green = Int(input[index + 1])
+      let blue = Int(input[index + 2])
+      let alpha = Int(input[index + 3])
+      let luminance = (red + green + blue) / 3
+
+      if alpha > 0 && luminance < threshold {
+        minX = min(minX, x)
+        minY = min(minY, y)
+        maxX = max(maxX, x)
+        maxY = max(maxY, y)
+      }
+    }
+  }
+
+  if minX > maxX || minY > maxY {
+    throw NSError(domain: "LogoGenerator", code: 3)
+  }
+
+  let padding = 6
+  minX = max(0, minX - padding)
+  minY = max(0, minY - padding)
+  maxX = min(width - 1, maxX + padding)
+  maxY = min(height - 1, maxY + padding)
+
+  let outputWidth = maxX - minX + 1
+  let outputHeight = maxY - minY + 1
+  var output = [UInt8](
+    repeating: 0,
+    count: outputHeight * outputWidth * bytesPerPixel
+  )
+
+  let tintRed = UInt8(tint.red * 255)
+  let tintGreen = UInt8(tint.green * 255)
+  let tintBlue = UInt8(tint.blue * 255)
+
+  for y in 0..<outputHeight {
+    for x in 0..<outputWidth {
+      let sourceIndex = (minY + y) * bytesPerRow + (minX + x) * bytesPerPixel
+      let red = Int(input[sourceIndex])
+      let green = Int(input[sourceIndex + 1])
+      let blue = Int(input[sourceIndex + 2])
+      let sourceAlpha = Int(input[sourceIndex + 3])
+      let luminance = (red + green + blue) / 3
+      let matteAlpha = min(255, max(0, (245 - luminance) * 5))
+      let alpha = UInt8(min(sourceAlpha, matteAlpha))
+      let outputIndex = y * outputWidth * bytesPerPixel + x * bytesPerPixel
+
+      output[outputIndex] = UInt8(Int(tintRed) * Int(alpha) / 255)
+      output[outputIndex + 1] = UInt8(Int(tintGreen) * Int(alpha) / 255)
+      output[outputIndex + 2] = UInt8(Int(tintBlue) * Int(alpha) / 255)
+      output[outputIndex + 3] = alpha
+    }
+  }
+
+  let data = Data(output)
+  guard let provider = CGDataProvider(data: data as CFData),
+        let image = CGImage(
+          width: outputWidth,
+          height: outputHeight,
+          bitsPerComponent: 8,
+          bitsPerPixel: 32,
+          bytesPerRow: outputWidth * bytesPerPixel,
+          space: colorSpace,
+          bitmapInfo: CGBitmapInfo(
+            rawValue: CGImageAlphaInfo.premultipliedLast.rawValue
+          ),
+          provider: provider,
+          decode: nil,
+          shouldInterpolate: true,
+          intent: .defaultIntent
+        ) else {
+    throw NSError(domain: "LogoGenerator", code: 4)
+  }
+
+  return image
+}
+
+func aspectFit(image: CGImage, in rect: CGRect) -> CGRect {
+  let imageRatio = CGFloat(image.width) / CGFloat(image.height)
+  let rectRatio = rect.width / rect.height
+
+  if imageRatio > rectRatio {
+    let height = rect.width / imageRatio
+    return CGRect(
+      x: rect.minX,
+      y: rect.midY - height / 2,
+      width: rect.width,
+      height: height
     )
-  )
-  context.fillPath()
+  }
 
-  let plane = CGMutablePath()
-  plane.move(to: CGPoint(x: 258, y: 615))
-  plane.addCurve(
-    to: CGPoint(x: 365, y: 557),
-    control1: CGPoint(x: 299, y: 598),
-    control2: CGPoint(x: 329, y: 579)
+  let width = rect.height * imageRatio
+  return CGRect(
+    x: rect.midX - width / 2,
+    y: rect.minY,
+    width: width,
+    height: rect.height
   )
-  plane.addLine(to: CGPoint(x: 292, y: 494))
-  plane.addCurve(
-    to: CGPoint(x: 304, y: 474),
-    control1: CGPoint(x: 282, y: 485),
-    control2: CGPoint(x: 288, y: 476)
-  )
-  plane.addLine(to: CGPoint(x: 344, y: 469))
-  plane.addCurve(
-    to: CGPoint(x: 382, y: 489),
-    control1: CGPoint(x: 357, y: 468),
-    control2: CGPoint(x: 370, y: 477)
-  )
-  plane.addLine(to: CGPoint(x: 438, y: 535))
-  plane.addCurve(
-    to: CGPoint(x: 513, y: 535),
-    control1: CGPoint(x: 461, y: 554),
-    control2: CGPoint(x: 489, y: 553)
-  )
-  plane.addLine(to: CGPoint(x: 652, y: 445))
-  plane.addCurve(
-    to: CGPoint(x: 766, y: 402),
-    control1: CGPoint(x: 691, y: 420),
-    control2: CGPoint(x: 731, y: 400)
-  )
-  plane.addCurve(
-    to: CGPoint(x: 789, y: 430),
-    control1: CGPoint(x: 793, y: 404),
-    control2: CGPoint(x: 802, y: 416)
-  )
-  plane.addCurve(
-    to: CGPoint(x: 700, y: 489),
-    control1: CGPoint(x: 774, y: 449),
-    control2: CGPoint(x: 744, y: 469)
-  )
-  plane.addLine(to: CGPoint(x: 638, y: 518))
-  plane.addLine(to: CGPoint(x: 657, y: 552))
-  plane.addLine(to: CGPoint(x: 623, y: 568))
-  plane.addLine(to: CGPoint(x: 588, y: 540))
-  plane.addLine(to: CGPoint(x: 430, y: 609))
-  plane.addLine(to: CGPoint(x: 318, y: 670))
-  plane.addLine(to: CGPoint(x: 338, y: 618))
-  plane.addLine(to: CGPoint(x: 277, y: 637))
-  plane.addCurve(
-    to: CGPoint(x: 258, y: 615),
-    control1: CGPoint(x: 261, y: 642),
-    control2: CGPoint(x: 251, y: 628)
-  )
-  plane.closeSubpath()
+}
 
-  context.addPath(plane)
-  context.fillPath()
+func drawImage(_ image: CGImage, in rect: CGRect, context: CGContext) {
+  context.saveGState()
+  context.translateBy(x: rect.minX, y: rect.maxY)
+  context.scaleBy(x: 1, y: -1)
+  context.draw(
+    image,
+    in: CGRect(x: 0, y: 0, width: rect.width, height: rect.height)
+  )
   context.restoreGState()
+}
+
+func drawPlane(in context: CGContext) throws {
+  let image = try makeSilhouetteImage(
+    sourcePath: "scripts/plane-silhouette-source.png",
+    tint: Color(0x173245)
+  )
+  let drawRect = aspectFit(
+    image: image,
+    in: CGRect(x: 202, y: 386, width: 620, height: 300)
+  )
+
+  drawImage(image, in: drawRect, context: context)
 }
 
 func drawIcon(size: Int, outputPath: String) throws {
@@ -237,7 +326,7 @@ func drawIcon(size: Int, outputPath: String) throws {
     context.fillPath()
   }
 
-  drawPlane(in: context)
+  try drawPlane(in: context)
 
   NSGraphicsContext.restoreGraphicsState()
 
