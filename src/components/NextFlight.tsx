@@ -182,6 +182,7 @@ function FlightCard({
                   <Typography variant="subtitle2">Pick-up</Typography>
                 </TimelineOppositeContent>
                 <TimelineSeparator>
+                  <TimelineConnector sx={{ visibility: 'hidden' }} />
                   <TimelineDot variant="outlined"><AirportShuttleIcon fontSize="small"/></TimelineDot>
                   <TimelineConnector />
                 </TimelineSeparator>
@@ -197,7 +198,7 @@ function FlightCard({
                 <Typography variant="subtitle2">Report</Typography>
               </TimelineOppositeContent>
               <TimelineSeparator>
-                {pickupTime && <TimelineConnector />}
+                <TimelineConnector sx={pickupTime ? undefined : { visibility: 'hidden' }} />
                 <TimelineDot variant="outlined"><AssignmentIndIcon fontSize="small"/></TimelineDot>
                 <TimelineConnector />
               </TimelineSeparator>
@@ -232,6 +233,7 @@ function FlightCard({
               <TimelineSeparator>
                 <TimelineConnector />
                 <TimelineDot color="primary"><FlightLandIcon fontSize="small" /></TimelineDot>
+                <TimelineConnector sx={{ visibility: 'hidden' }} />
               </TimelineSeparator>
               <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
                 <Typography variant="body2" color="text.secondary">{dayAndMonth(arrivalTime, flight.destination, isUTC)}</Typography>
