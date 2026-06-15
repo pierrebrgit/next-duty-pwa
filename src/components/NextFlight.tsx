@@ -176,70 +176,68 @@ function FlightCard({
 
         <Box sx={{ minHeight: '220px' }}>
           <Timeline sx={{ p: 0, m: 0 }}>
-              {pickupTime && (
+            {pickupTime && (
               <TimelineItem>
-                  <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
+                <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
                   <Typography variant="subtitle2">Pick-up</Typography>
-                  </TimelineOppositeContent>
-                  <TimelineSeparator>
-                  <TimelineConnector />
+                </TimelineOppositeContent>
+                <TimelineSeparator>
                   <TimelineDot variant="outlined"><AirportShuttleIcon fontSize="small"/></TimelineDot>
                   <TimelineConnector />
-                  </TimelineSeparator>
-                  <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
+                </TimelineSeparator>
+                <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
                   <Typography variant="body2" color="text.secondary">{dayAndMonth(pickupTime, flight.origin, isUTC)}</Typography>
                   <Typography variant="body2" color="text.primary">{hoursZoned(pickupTime, flight.origin, isUTC)}</Typography>
-                  </TimelineContent>
+                </TimelineContent>
               </TimelineItem>
-              )}
+            )}
 
-              <TimelineItem>
+            <TimelineItem>
               <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
-                  <Typography variant="subtitle2">Report</Typography>
+                <Typography variant="subtitle2">Report</Typography>
               </TimelineOppositeContent>
               <TimelineSeparator>
-                  <TimelineConnector />
-                  <TimelineDot variant="outlined"><AssignmentIndIcon fontSize="small"/></TimelineDot>
-                  <TimelineConnector />
+                {pickupTime && <TimelineConnector />}
+                <TimelineDot variant="outlined"><AssignmentIndIcon fontSize="small"/></TimelineDot>
+                <TimelineConnector />
               </TimelineSeparator>
               <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
-                  <Typography variant="body2" color="text.secondary">{dayAndMonth(reportTime, flight.origin, isUTC)}</Typography>
-                  <Typography variant="body2" color="text.primary">{hoursZoned(reportTime, flight.origin, isUTC)}</Typography>
+                <Typography variant="body2" color="text.secondary">{dayAndMonth(reportTime, flight.origin, isUTC)}</Typography>
+                <Typography variant="body2" color="text.primary">{hoursZoned(reportTime, flight.origin, isUTC)}</Typography>
               </TimelineContent>
-              </TimelineItem>
+            </TimelineItem>
 
-              <TimelineItem>
+            <TimelineItem>
               <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1, position: 'relative' }} align="right">
-                  <Typography variant="subtitle2">Departure</Typography>
+                <Typography variant="subtitle2">Departure</Typography>
               </TimelineOppositeContent>
               <TimelineSeparator>
-                  <TimelineConnector />
-                  <TimelineDot color="primary"><FlightTakeoffIcon fontSize="small" /></TimelineDot>
-                  <TimelineConnector />
+                <TimelineConnector />
+                <TimelineDot color="primary"><FlightTakeoffIcon fontSize="small" /></TimelineDot>
+                <TimelineConnector />
               </TimelineSeparator>
               <TimelineContent sx={{ py: '12px', px: 2, flex: 1, position: 'relative' }}>
-                  <Typography variant="body2" color="text.secondary">{dayAndMonth(depTime, flight.origin, isUTC)}</Typography>
-                  <Typography variant="body2" color="text.primary">{hoursZoned(depTime, flight.origin, isUTC)}</Typography>
-                  <Box sx={{ position: 'absolute', bottom: -12, left: 8, bgcolor: 'background.paper', px: 0.5, zIndex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">{durationStr}</Typography>
-                  </Box>
+                <Typography variant="body2" color="text.secondary">{dayAndMonth(depTime, flight.origin, isUTC)}</Typography>
+                <Typography variant="body2" color="text.primary">{hoursZoned(depTime, flight.origin, isUTC)}</Typography>
+                <Box sx={{ position: 'absolute', bottom: -12, left: 8, bgcolor: 'background.paper', px: 0.5, zIndex: 1 }}>
+                  <Typography variant="caption" color="text.secondary">{durationStr}</Typography>
+                </Box>
               </TimelineContent>
-              </TimelineItem>
+            </TimelineItem>
 
-              <TimelineItem>
+            <TimelineItem>
               <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
-                  <Typography variant="subtitle2">Arrival</Typography>
+                <Typography variant="subtitle2">Arrival</Typography>
               </TimelineOppositeContent>
               <TimelineSeparator>
-                  <TimelineConnector />
-                  <TimelineDot color="primary"><FlightLandIcon fontSize="small" /></TimelineDot>
-                  <TimelineConnector />
+                <TimelineConnector />
+                <TimelineDot color="primary"><FlightLandIcon fontSize="small" /></TimelineDot>
               </TimelineSeparator>
               <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
-                  <Typography variant="body2" color="text.secondary">{dayAndMonth(arrivalTime, flight.destination, isUTC)}</Typography>
-                  <Typography variant="body2" color="text.primary">{hoursZoned(arrivalTime, flight.destination, isUTC)}</Typography>
+                <Typography variant="body2" color="text.secondary">{dayAndMonth(arrivalTime, flight.destination, isUTC)}</Typography>
+                <Typography variant="body2" color="text.primary">{hoursZoned(arrivalTime, flight.destination, isUTC)}</Typography>
               </TimelineContent>
-              </TimelineItem>
+            </TimelineItem>
           </Timeline>
         </Box>
 
