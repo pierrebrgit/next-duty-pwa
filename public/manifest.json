@@ -3,18 +3,18 @@
   "name": "Next Duty Roster",
   "icons": [
     {
-      "src": "favicon.png?v=4",
+      "src": "favicon.png?v=7",
       "sizes": "64x64",
       "type": "image/png"
     },
     {
-      "src": "logo192.png?v=4",
+      "src": "logo192.png?v=7",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "logo512.png?v=4",
+      "src": "logo512.png?v=7",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"

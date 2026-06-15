@@ -20,29 +20,6 @@ struct Color {
   }
 }
 
-func topRoundedRect(_ rect: CGRect, radius: CGFloat) -> CGPath {
-  let path = CGMutablePath()
-  let minX = rect.minX
-  let minY = rect.minY
-  let maxX = rect.maxX
-  let maxY = rect.maxY
-
-  path.move(to: CGPoint(x: minX, y: maxY))
-  path.addLine(to: CGPoint(x: minX, y: minY + radius))
-  path.addQuadCurve(
-    to: CGPoint(x: minX + radius, y: minY),
-    control: CGPoint(x: minX, y: minY)
-  )
-  path.addLine(to: CGPoint(x: maxX - radius, y: minY))
-  path.addQuadCurve(
-    to: CGPoint(x: maxX, y: minY + radius),
-    control: CGPoint(x: maxX, y: minY)
-  )
-  path.addLine(to: CGPoint(x: maxX, y: maxY))
-  path.closeSubpath()
-  return path
-}
-
 func drawLinearGradient(
   in context: CGContext,
   rect: CGRect,
@@ -51,17 +28,16 @@ func drawLinearGradient(
   start: CGPoint,
   end: CGPoint
 ) {
-  let colors = [startColor.cgColor, endColor.cgColor] as CFArray
   let gradient = CGGradient(
     colorsSpace: CGColorSpaceCreateDeviceRGB(),
-    colors: colors,
+    colors: [startColor.cgColor, endColor.cgColor] as CFArray,
     locations: [0, 1]
-  )
+  )!
 
   context.saveGState()
   context.clip(to: rect)
   context.drawLinearGradient(
-    gradient!,
+    gradient,
     start: start,
     end: end,
     options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
@@ -69,66 +45,55 @@ func drawLinearGradient(
   context.restoreGState()
 }
 
+func topRoundedRect(_ rect: CGRect, radius: CGFloat) -> CGPath {
+  let path = CGMutablePath()
+
+  path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+  path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + radius))
+  path.addQuadCurve(
+    to: CGPoint(x: rect.minX + radius, y: rect.minY),
+    control: CGPoint(x: rect.minX, y: rect.minY)
+  )
+  path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.minY))
+  path.addQuadCurve(
+    to: CGPoint(x: rect.maxX, y: rect.minY + radius),
+    control: CGPoint(x: rect.maxX, y: rect.minY)
+  )
+  path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+  path.closeSubpath()
+
+  return path
+}
+
 func drawPlane(in context: CGContext) {
   context.saveGState()
-  context.setShadow(
-    offset: CGSize(width: 0, height: 10),
-    blur: 14,
-    color: Color(0x18202a, alpha: 0.22).cgColor
-  )
-
-  context.setFillColor(Color(0x5d656d).cgColor)
-  let engineRadius: CGFloat = 8
-  context.addPath(
-    CGPath(
-      roundedRect: CGRect(x: 413, y: 488, width: 36, height: 88),
-      cornerWidth: engineRadius,
-      cornerHeight: engineRadius,
-      transform: nil
-    )
-  )
-  context.fillPath()
-  context.addPath(
-    CGPath(
-      roundedRect: CGRect(x: 575, y: 488, width: 36, height: 88),
-      cornerWidth: engineRadius,
-      cornerHeight: engineRadius,
-      transform: nil
-    )
-  )
-  context.fillPath()
+  context.setFillColor(Color(0x4b5563).cgColor)
 
   let plane = CGMutablePath()
-  plane.move(to: CGPoint(x: 512, y: 374))
+  plane.move(to: CGPoint(x: 284, y: 674))
+  plane.addLine(to: CGPoint(x: 365, y: 625))
+  plane.addLine(to: CGPoint(x: 326, y: 535))
+  plane.addLine(to: CGPoint(x: 416, y: 598))
+  plane.addLine(to: CGPoint(x: 628, y: 558))
   plane.addCurve(
-    to: CGPoint(x: 552, y: 500),
-    control1: CGPoint(x: 539, y: 396),
-    control2: CGPoint(x: 552, y: 442)
+    to: CGPoint(x: 735, y: 574),
+    control1: CGPoint(x: 677, y: 548),
+    control2: CGPoint(x: 719, y: 554)
   )
-  plane.addLine(to: CGPoint(x: 553, y: 590))
-  plane.addLine(to: CGPoint(x: 773, y: 686))
-  plane.addLine(to: CGPoint(x: 766, y: 740))
-  plane.addLine(to: CGPoint(x: 552, y: 672))
-  plane.addLine(to: CGPoint(x: 549, y: 799))
-  plane.addLine(to: CGPoint(x: 637, y: 857))
-  plane.addLine(to: CGPoint(x: 629, y: 908))
-  plane.addLine(to: CGPoint(x: 523, y: 869))
-  plane.addLine(to: CGPoint(x: 512, y: 908))
-  plane.addLine(to: CGPoint(x: 501, y: 869))
-  plane.addLine(to: CGPoint(x: 395, y: 908))
-  plane.addLine(to: CGPoint(x: 387, y: 857))
-  plane.addLine(to: CGPoint(x: 475, y: 799))
-  plane.addLine(to: CGPoint(x: 472, y: 672))
-  plane.addLine(to: CGPoint(x: 258, y: 740))
-  plane.addLine(to: CGPoint(x: 251, y: 686))
-  plane.addLine(to: CGPoint(x: 471, y: 590))
-  plane.addLine(to: CGPoint(x: 472, y: 500))
   plane.addCurve(
-    to: CGPoint(x: 512, y: 374),
-    control1: CGPoint(x: 472, y: 442),
-    control2: CGPoint(x: 485, y: 396)
+    to: CGPoint(x: 646, y: 620),
+    control1: CGPoint(x: 719, y: 604),
+    control2: CGPoint(x: 686, y: 619)
   )
+  plane.addLine(to: CGPoint(x: 598, y: 627))
+  plane.addLine(to: CGPoint(x: 523, y: 777))
+  plane.addLine(to: CGPoint(x: 451, y: 801))
+  plane.addLine(to: CGPoint(x: 506, y: 640))
+  plane.addLine(to: CGPoint(x: 382, y: 690))
+  plane.addLine(to: CGPoint(x: 298, y: 722))
+  plane.addLine(to: CGPoint(x: 309, y: 686))
   plane.closeSubpath()
+
   context.addPath(plane)
   context.fillPath()
   context.restoreGState()
@@ -157,109 +122,78 @@ func drawIcon(size: Int, outputPath: String) throws {
   context.scaleBy(x: scale, y: scale)
   context.translateBy(x: 0, y: 1024)
   context.scaleBy(x: 1, y: -1)
+  context.interpolationQuality = .high
 
   let iconRect = CGRect(x: 0, y: 0, width: 1024, height: 1024)
-  context.setFillColor(Color(0x071329).cgColor)
-  context.fill(iconRect)
   drawLinearGradient(
     in: context,
     rect: iconRect,
-    from: Color(0x071329),
-    to: Color(0x0f4c8f),
-    start: CGPoint(x: 90, y: 40),
-    end: CGPoint(x: 940, y: 960)
+    from: Color(0x08305f),
+    to: Color(0x0f7fcf),
+    start: CGPoint(x: 120, y: 80),
+    end: CGPoint(x: 920, y: 940)
   )
 
-  let glowColors = [Color(0x2aa8ff, alpha: 0.24).cgColor, Color(0x2aa8ff, alpha: 0).cgColor] as CFArray
-  let glow = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: glowColors, locations: [0, 1])!
-  context.drawRadialGradient(
-    glow,
-    startCenter: CGPoint(x: 730, y: 230),
-    startRadius: 0,
-    endCenter: CGPoint(x: 730, y: 230),
-    endRadius: 520,
-    options: []
-  )
-
-  let cardRect = CGRect(x: 156, y: 148, width: 712, height: 728)
-  context.saveGState()
-  context.setShadow(
-    offset: CGSize(width: 0, height: 30),
-    blur: 45,
-    color: Color(0x000000, alpha: 0.34).cgColor
-  )
-  context.setFillColor(Color(0xf7faff).cgColor)
+  let calendarRect = CGRect(x: 180, y: 174, width: 664, height: 672)
+  context.setFillColor(Color(0xf7f9fc).cgColor)
   context.addPath(
     CGPath(
-      roundedRect: cardRect,
-      cornerWidth: 88,
-      cornerHeight: 88,
+      roundedRect: calendarRect,
+      cornerWidth: 72,
+      cornerHeight: 72,
       transform: nil
     )
   )
   context.fillPath()
-  context.restoreGState()
 
-  context.setStrokeColor(Color(0xb7c7d9, alpha: 0.9).cgColor)
-  context.setLineWidth(10)
+  context.setStrokeColor(Color(0xc6d1dc).cgColor)
+  context.setLineWidth(12)
   context.addPath(
     CGPath(
-      roundedRect: cardRect,
-      cornerWidth: 88,
-      cornerHeight: 88,
+      roundedRect: calendarRect.insetBy(dx: 6, dy: 6),
+      cornerWidth: 66,
+      cornerHeight: 66,
       transform: nil
     )
   )
   context.strokePath()
 
-  let headerRect = CGRect(x: 156, y: 148, width: 712, height: 210)
-  context.addPath(topRoundedRect(headerRect, radius: 88))
+  let headerRect = CGRect(x: 180, y: 174, width: 664, height: 178)
+  context.addPath(topRoundedRect(headerRect, radius: 72))
   context.saveGState()
   context.clip()
   drawLinearGradient(
     in: context,
     rect: headerRect,
-    from: Color(0x2aa8ff),
-    to: Color(0x0876d4),
-    start: CGPoint(x: 156, y: 148),
-    end: CGPoint(x: 868, y: 358)
+    from: Color(0x2bb3f3),
+    to: Color(0x0288dc),
+    start: CGPoint(x: 180, y: 174),
+    end: CGPoint(x: 844, y: 352)
   )
   context.restoreGState()
 
-  context.setFillColor(Color(0xd9e8f8).cgColor)
-  context.fill(CGRect(x: 156, y: 352, width: 712, height: 8))
+  context.setFillColor(Color(0xd8e4ee).cgColor)
+  context.fill(CGRect(x: 180, y: 346, width: 664, height: 8))
 
-  let ringCenters = [CGPoint(x: 338, y: 196), CGPoint(x: 686, y: 196)]
-  for center in ringCenters {
-    context.saveGState()
-    context.setShadow(
-      offset: CGSize(width: 0, height: 8),
-      blur: 12,
-      color: Color(0x122238, alpha: 0.28).cgColor
-    )
-    context.setFillColor(Color(0xebf2fb).cgColor)
-    context.fillEllipse(in: CGRect(x: center.x - 43, y: center.y - 43, width: 86, height: 86))
-    context.restoreGState()
+  let rings = [
+    (x: CGFloat(348), y: CGFloat(112)),
+    (x: CGFloat(676), y: CGFloat(112)),
+  ]
 
-    context.setFillColor(Color(0x6c747c).cgColor)
+  for ring in rings {
+    context.setFillColor(Color(0xe8eef5).cgColor)
+    context.fillEllipse(in: CGRect(x: ring.x - 42, y: 228, width: 84, height: 84))
+
+    context.setFillColor(Color(0x6b7280).cgColor)
     context.addPath(
       CGPath(
-        roundedRect: CGRect(x: center.x - 24, y: 76, width: 48, height: 140),
-        cornerWidth: 24,
-        cornerHeight: 24,
+        roundedRect: CGRect(x: ring.x - 22, y: ring.y, width: 44, height: 150),
+        cornerWidth: 22,
+        cornerHeight: 22,
         transform: nil
       )
     )
     context.fillPath()
-
-    drawLinearGradient(
-      in: context,
-      rect: CGRect(x: center.x - 24, y: 76, width: 48, height: 140),
-      from: Color(0x90979f),
-      to: Color(0x5d656d),
-      start: CGPoint(x: center.x, y: 76),
-      end: CGPoint(x: center.x, y: 216)
-    )
   }
 
   drawPlane(in: context)

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'next-duty-v4';
+const CACHE_NAME = 'next-duty-v7';
 const APP_SHELL = [
   '/',
   '/index.html',
