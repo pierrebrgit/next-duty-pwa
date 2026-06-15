@@ -223,7 +223,7 @@ func drawPlane(in context: CGContext) throws {
   )
   let drawRect = aspectFit(
     image: image,
-    in: CGRect(x: 202, y: 386, width: 620, height: 300)
+    in: CGRect(x: 258, y: 434, width: 508, height: 234)
   )
 
   drawImage(image, in: drawRect, context: context)
@@ -264,13 +264,13 @@ func drawIcon(size: Int, outputPath: String) throws {
     end: CGPoint(x: 920, y: 940)
   )
 
-  let calendarRect = CGRect(x: 180, y: 174, width: 664, height: 672)
+  let calendarRect = CGRect(x: 226, y: 214, width: 572, height: 584)
   context.setFillColor(Color(0xf7f9fc).cgColor)
   context.addPath(
     CGPath(
       roundedRect: calendarRect,
-      cornerWidth: 72,
-      cornerHeight: 72,
+      cornerWidth: 62,
+      cornerHeight: 62,
       transform: nil
     )
   )
@@ -281,15 +281,15 @@ func drawIcon(size: Int, outputPath: String) throws {
   context.addPath(
     CGPath(
       roundedRect: calendarRect.insetBy(dx: 6, dy: 6),
-      cornerWidth: 66,
-      cornerHeight: 66,
+      cornerWidth: 56,
+      cornerHeight: 56,
       transform: nil
     )
   )
   context.strokePath()
 
-  let headerRect = CGRect(x: 180, y: 174, width: 664, height: 178)
-  context.addPath(topRoundedRect(headerRect, radius: 72))
+  let headerRect = CGRect(x: 226, y: 214, width: 572, height: 146)
+  context.addPath(topRoundedRect(headerRect, radius: 62))
   context.saveGState()
   context.clip()
   drawLinearGradient(
@@ -297,29 +297,29 @@ func drawIcon(size: Int, outputPath: String) throws {
     rect: headerRect,
     from: Color(0x2bb3f3),
     to: Color(0x0288dc),
-    start: CGPoint(x: 180, y: 174),
-    end: CGPoint(x: 844, y: 352)
+    start: CGPoint(x: 226, y: 214),
+    end: CGPoint(x: 798, y: 360)
   )
   context.restoreGState()
 
   context.setFillColor(Color(0xd8e4ee).cgColor)
-  context.fill(CGRect(x: 180, y: 346, width: 664, height: 8))
+  context.fill(CGRect(x: 226, y: 354, width: 572, height: 8))
 
   let rings = [
-    (x: CGFloat(348), y: CGFloat(112)),
-    (x: CGFloat(676), y: CGFloat(112)),
+    (x: CGFloat(376), y: CGFloat(142)),
+    (x: CGFloat(648), y: CGFloat(142)),
   ]
 
   for ring in rings {
     context.setFillColor(Color(0xe8eef5).cgColor)
-    context.fillEllipse(in: CGRect(x: ring.x - 42, y: 228, width: 84, height: 84))
+    context.fillEllipse(in: CGRect(x: ring.x - 36, y: 234, width: 72, height: 72))
 
     context.setFillColor(Color(0x6b7280).cgColor)
     context.addPath(
       CGPath(
-        roundedRect: CGRect(x: ring.x - 22, y: ring.y, width: 44, height: 150),
-        cornerWidth: 22,
-        cornerHeight: 22,
+        roundedRect: CGRect(x: ring.x - 20, y: ring.y, width: 40, height: 134),
+        cornerWidth: 20,
+        cornerHeight: 20,
         transform: nil
       )
     )
