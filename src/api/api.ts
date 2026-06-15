@@ -5,7 +5,7 @@ const WAKEUP_URL = import.meta.env.VITE_WAKEUP_URL || 'https://wakeup-atrwfvyqwa
 
 const requestJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
 
   try {
     const response = await fetch(url, {
@@ -25,6 +25,11 @@ const requestJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
     }
 
     return await response.json() as T;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Sync timed out. Please try again in a moment.');
+    }
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }

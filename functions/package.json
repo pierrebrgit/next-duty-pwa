@@ -3,6 +3,7 @@
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
+    "test": "npm run build && node --test test/*.node.cjs",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
@@ -29,6 +30,7 @@
     "typescript": "^5.7.3"
   },
   "overrides": {
+    "form-data": "^2.5.6",
     "uuid": "^11.1.1"
   },
   "private": true

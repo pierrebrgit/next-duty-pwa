@@ -8,8 +8,13 @@ export const saveProfile = (profile: UserProfile) => {
 };
 
 export const loadProfile = (): UserProfile | null => {
-  const data = localStorage.getItem(STORAGE_KEY);
-  return data ? JSON.parse(data) : null;
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    clearProfile();
+    return null;
+  }
 };
 
 export const clearProfile = () => {

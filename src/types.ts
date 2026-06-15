@@ -10,11 +10,13 @@ export interface Rotation {
   flights: Flight[];
   startDate: string | Date;
   endDate: Date; // Keep as Date for easier comparison in some places
+  complete?: boolean;
 }
 
 export interface Roster {
   base: string;
   rotations: Rotation[];
+  unmatchedFlights?: Flight[];
 }
 
 export interface UserProfile {

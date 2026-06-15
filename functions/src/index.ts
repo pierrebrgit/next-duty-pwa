@@ -3,6 +3,8 @@ import net from "node:net";
 import {onRequest} from "firebase-functions/v2/https";
 import * as ical from "node-ical";
 import cors from "cors";
+import {toIata} from "./airportData";
+import {processIcal} from "./rosterParser";
 
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://airbuddy.web.app",
@@ -10,6 +12,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "https://bee-buddy-2.web.app",
   "https://bee-buddy-2.firebaseapp.com",
 ];
+const DEFAULT_ALLOWED_ICS_HOSTS = ["cyberjet.frenchbee.com"];
 
 const FETCH_TIMEOUT_MS = 30000;
 const MAX_ICS_BYTES = 10_000_000;
@@ -31,34 +34,6 @@ const corsHandler = cors({
 });
 
 const rateLimits = new Map<string, {count: number; resetAt: number}>();
-
-interface Flight {
-  origin: string;
-  startDate: Date;
-  flightNumber: string;
-  endDate: Date;
-  destination: string;
-}
-
-interface Rotation {
-  flights: Flight[];
-  startDate: Date;
-  endDate: Date;
-}
-
-interface Roster {
-  base: string;
-  rotations: Rotation[];
-}
-
-interface CalendarEvent {
-  type?: string;
-  summary?: unknown;
-  location?: unknown;
-  description?: unknown;
-  start?: unknown;
-  end?: unknown;
-}
 
 interface RequestLike {
   headers: {
@@ -85,129 +60,6 @@ const isAllowedOrigin = (origin: string): boolean => {
   }
 };
 
-const icaoIata = (str: string): string => {
-  const mapping: {[key: string]: string} = {
-    "LFPO": "ORY",
-    "FMEE": "RUN",
-    "NTAA": "PPT",
-    "KSFO": "SFO",
-    "KEWR": "EWR",
-    "KLAX": "LAX",
-    "KMIA": "MIA",
-    "LFBO": "TLS",
-    "LFPG": "CDG",
-    "MMUN": "CUN",
-    "MDPC": "PUJ",
-    "MMPR": "PVR",
-    "GVAC": "SID",
-    "HDAM": "JIB",
-    "LFLX": "CHR",
-    "LHBP": "BUD",
-    "VRMM": "MLE",
-    "VCBI": "CMB",
-    "VCCC": "RML",
-    "NWWW": "NOU",
-    "NWWM": "GEA",
-    "FIMP": "MRU",
-    "FIMR": "RRG",
-    "OMDB": "DXB",
-    "OMDW": "DWC",
-  };
-  const up = str.toUpperCase().trim();
-  return mapping[up] || up;
-};
-
-const extractFlightNumber = (summary: string): string | null => {
-  const match = summary.match(/^(BF\d+|FWI\d+|MEP\d+|7\d+|\d{3,4})/i);
-  return match ? match[1].toUpperCase() : null;
-};
-
-const asCalendarEvent = (event: unknown): CalendarEvent | null => {
-  if (typeof event !== "object" || event === null) return null;
-  return event as CalendarEvent;
-};
-
-const processIcal = (
-  calendar: Record<string, unknown>,
-  base: string
-): Roster => {
-  const flightsMeps: Flight[] = [];
-
-  console.log("--- START PROCESS ICAL ---");
-
-  for (const event of Object.values(calendar)) {
-    const ev = asCalendarEvent(event);
-    if (!ev || ev.type !== "VEVENT") continue;
-
-    const summary = (ev.summary || "").toString().trim();
-    const flightNumber = extractFlightNumber(summary);
-    if (!flightNumber) continue;
-
-    const location = (ev.location || "").toString();
-    const parts = location.split(/[^a-zA-Z0-9]+/)
-      .filter((part) => part.length >= 3);
-
-    if (parts.length < 2 || !(ev.start instanceof Date) ||
-        !(ev.end instanceof Date)) {
-      continue;
-    }
-
-    const startBase = icaoIata(parts[0]);
-    const endBase = icaoIata(parts[1]);
-
-    if (summary.toUpperCase().startsWith("MEP")) {
-      if (["TLS", "CDG"].includes(startBase) ||
-          ["TLS", "CDG"].includes(endBase)) {
-        continue;
-      }
-    }
-
-    flightsMeps.push({
-      origin: startBase,
-      startDate: ev.start,
-      flightNumber,
-      endDate: ev.end,
-      destination: endBase,
-    });
-  }
-
-  flightsMeps.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-
-  const roster: Roster = {
-    base,
-    rotations: [],
-  };
-
-  for (let i = 0; i < flightsMeps.length; i++) {
-    if (flightsMeps[i].origin !== base) continue;
-
-    const rotationFlights = [flightsMeps[i]];
-    let currentDestination = flightsMeps[i].destination;
-    let j = i + 1;
-
-    while (currentDestination !== base && j < flightsMeps.length) {
-      const nextFlight = flightsMeps[j];
-      if (nextFlight.origin !== currentDestination) break;
-
-      rotationFlights.push(nextFlight);
-      currentDestination = nextFlight.destination;
-      j++;
-    }
-
-    if (currentDestination === base && rotationFlights.length > 1) {
-      roster.rotations.push({
-        flights: rotationFlights,
-        startDate: rotationFlights[0].startDate,
-        endDate: rotationFlights[rotationFlights.length - 1].endDate,
-      });
-      i = j - 1;
-    }
-  }
-
-  console.log(`--- END PROCESS ICAL: ${roster.rotations.length} ---`);
-  return roster;
-};
-
 const readString = (value: unknown): string | undefined => {
   if (Array.isArray(value)) return readString(value[0]);
   return typeof value === "string" ? value.trim() : undefined;
@@ -216,7 +68,7 @@ const readString = (value: unknown): string | undefined => {
 const normalizeBase = (rawBase: string | undefined): string => {
   if (!rawBase) throw new Error("Missing base parameter");
 
-  const base = icaoIata(rawBase);
+  const base = toIata(rawBase);
   if (!/^[A-Z0-9]{3}$/.test(base)) {
     throw new Error("Invalid base parameter");
   }
@@ -224,15 +76,15 @@ const normalizeBase = (rawBase: string | undefined): string => {
 };
 
 const configuredHostAllowlist = (): string[] => {
-  return (process.env.ALLOWED_ICS_HOSTS || "")
+  const configured = (process.env.ALLOWED_ICS_HOSTS || "")
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
+  return [...DEFAULT_ALLOWED_ICS_HOSTS, ...configured];
 };
 
 const isHostAllowed = (hostname: string): boolean => {
   const allowlist = configuredHostAllowlist();
-  if (allowlist.length === 0) return true;
 
   return allowlist.some((entry) => {
     if (entry.startsWith(".")) return hostname.endsWith(entry);
@@ -319,8 +171,13 @@ const fetchCalendarText = async (url: URL): Promise<string> => {
     headers: {
       "Accept": "text/calendar,*/*;q=0.8",
     },
+    redirect: "manual",
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
+
+  if (response.status >= 300 && response.status < 400) {
+    throw new Error("Calendar redirects are not allowed");
+  }
 
   if (!response.ok) {
     throw new Error(`Calendar responded with status ${response.status}`);
@@ -341,7 +198,7 @@ const fetchCalendarText = async (url: URL): Promise<string> => {
 const clientKey = (req: RequestLike): string => {
   const forwardedFor = req.headers["x-forwarded-for"];
   const value = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
-  return value?.split(",")[0].trim() || req.ip || "unknown";
+  return req.ip || value?.split(",")[0].trim() || "unknown";
 };
 
 const isRateLimited = (key: string): boolean => {
@@ -364,7 +221,7 @@ const getErrorMessage = (error: unknown): string => {
 const statusForErrorMessage = (message: string): number => {
   if (/too large/i.test(message)) return 413;
   const clientErrorPattern =
-    /Missing|Invalid|not allowed|too long|allowlisted|must use/i;
+    /Missing|Invalid|not allowed|too long|allowlisted|must use|redirect/i;
   if (clientErrorPattern.test(message)) {
     return 400;
   }
@@ -373,8 +230,8 @@ const statusForErrorMessage = (message: string): number => {
 
 export const getProfile = onRequest(async (req, res) => {
   return corsHandler(req, res, async () => {
-    if (!["GET", "POST"].includes(req.method)) {
-      res.set("Allow", "GET, POST, OPTIONS");
+    if (req.method !== "POST") {
+      res.set("Allow", "POST, OPTIONS");
       res.status(405).send({message: "Method not allowed"});
       return;
     }
@@ -389,21 +246,20 @@ export const getProfile = onRequest(async (req, res) => {
     const body = typeof req.body === "object" && req.body !== null ?
       req.body as Record<string, unknown> :
       {};
-    const query = req.query as Record<string, unknown>;
 
     try {
-      const base = normalizeBase(
-        readString(body.base) || readString(query.base)
-      );
-      const calendarUrl = await normalizeCalendarUrl(
-        readString(body.ics) || readString(query.ics)
-      );
+      const base = normalizeBase(readString(body.base));
+      const calendarUrl = await normalizeCalendarUrl(readString(body.ics));
       const calendarText = await fetchCalendarText(calendarUrl);
       const webEvents = ical.sync.parseICS(calendarText) as Record<
         string,
         unknown
       >;
       const roster = processIcal(webEvents, base);
+      console.log(
+        `Calendar processed: ${roster.rotations.length} rotations, ` +
+        `${roster.unmatchedFlights.length} unmatched flights`
+      );
       res.send(roster);
     } catch (error: unknown) {
       const message = getErrorMessage(error);

@@ -34,6 +34,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Flight, Rotation, UserProfile } from '../types';
 import { loadProfile, saveProfile, getLastSyncTimestamp, setLastSyncTimestamp } from '../utils/storage';
 import { getNextDutyIndex } from '../utils/flightNavigation';
+import { getAirportTimeZone, getPickupOffsetMinutes } from '../utils/airportData';
 import { fetchProfileRoster } from '../api/api';
 
 const muiTheme = createTheme({
@@ -54,29 +55,15 @@ const AntSwitch = styled(Switch)(({ theme }) => ({
   '& .MuiSwitch-track': { borderRadius: 16 / 2, opacity: 1, backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,.35)' : 'rgba(0,0,0,.25)', boxSizing: 'border-box' },
 }));
 
-const airportZone = (airport: string) => {
-  const zones: Record<string, string> = {
-    ORY: "Europe/Paris", TLS: "Europe/Paris", CDG: "Europe/Paris", CHR: "Europe/Paris",
-    LAX: "America/Los_Angeles", SFO: "America/Los_Angeles",
-    EWR: "America/New_York", RUN: "Indian/Reunion",
-    PPT: "Pacific/Tahiti", MIA: "America/New_York", CUN: "America/Cancun",
-    JIB: "Africa/Djibouti", BUD: "Europe/Budapest", MLE: "Indian/Maldives",
-    CMB: "Asia/Colombo", RML: "Asia/Colombo", NOU: "Pacific/Noumea",
-    GEA: "Pacific/Noumea", MRU: "Indian/Mauritius", DXB: "Asia/Dubai",
-    DWC: "Asia/Dubai", PUJ: "America/Santo_Domingo", PVR: "America/Mexico_City",
-    SID: "Atlantic/Cape_Verde"
-  };
-  return zones[airport] || "Europe/Paris";
-};
-
 const dayAndMonth = (date: Date, airport: string, isUTC: boolean) => {
-  const zone = isUTC ? "UTC" : airportZone(airport);
+  const zone = isUTC ? "UTC" : getAirportTimeZone(airport);
   return date.toLocaleString('en-US', { day: 'numeric', month: 'short', timeZone: zone });
 };
 
 const hoursZoned = (date: Date, airport: string, isUTC: boolean) => {
-  const zone = isUTC ? "UTC" : airportZone(airport);
-  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: zone }) + (isUTC ? "Z" : "L");
+  const zone = isUTC ? "UTC" : getAirportTimeZone(airport);
+  const suffix = isUTC || zone === "UTC" ? "Z" : "L";
+  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: zone }) + suffix;
 };
 
 const countdown = (start: string | Date, end: string | Date) => {
@@ -160,13 +147,11 @@ function FlightCard({
   const durM = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
   const durationStr = `${durH}h${durM ? ' ' + durM + 'm' : ''}`;
 
-  let pickupTime = null;
   const isAway = flight.origin !== "ORY" && flight.origin !== profile.base;
-
-  if (isAway) {
-    const offsets: Record<string, number> = { LAX: -180, EWR: -150, MIA: -135, SFO: -150, PPT: -135, RUN: -180, CUN: -150 };
-    pickupTime = new Date(depTime.getTime() + (offsets[flight.origin] || 0) * 60 * 1000);
-  }
+  const pickupOffsetMinutes = isAway ? getPickupOffsetMinutes(flight.origin) : undefined;
+  const pickupTime = pickupOffsetMinutes === undefined ?
+    null :
+    new Date(depTime.getTime() + pickupOffsetMinutes * 60 * 1000);
 
   return (
     <Card
@@ -191,7 +176,7 @@ function FlightCard({
 
         <Box sx={{ minHeight: '220px' }}>
           <Timeline sx={{ p: 0, m: 0 }}>
-              {isAway && (
+              {pickupTime && (
               <TimelineItem>
                   <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
                   <Typography variant="subtitle2">Pick-up</Typography>
@@ -202,8 +187,8 @@ function FlightCard({
                   <TimelineConnector />
                   </TimelineSeparator>
                   <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
-                  <Typography variant="body2" color="text.secondary">{pickupTime && dayAndMonth(pickupTime, flight.origin, isUTC)}</Typography>
-                  <Typography variant="body2" color="text.primary">{pickupTime && hoursZoned(pickupTime, flight.origin, isUTC)}</Typography>
+                  <Typography variant="body2" color="text.secondary">{dayAndMonth(pickupTime, flight.origin, isUTC)}</Typography>
+                  <Typography variant="body2" color="text.primary">{hoursZoned(pickupTime, flight.origin, isUTC)}</Typography>
                   </TimelineContent>
               </TimelineItem>
               )}
@@ -441,7 +426,15 @@ export default function NextFlight() {
     try {
       const roster = await toast.promise(
         fetchProfileRoster(profile.base, profile.webcal),
-        { pending: 'Syncing...', success: 'Roster updated!', error: 'Sync failed' }
+        {
+          pending: 'Syncing...',
+          success: 'Roster updated!',
+          error: {
+            render({ data }) {
+              return data instanceof Error ? data.message : 'Sync failed';
+            },
+          },
+        }
       );
       const updatedProfile = { ...profile, rotations: roster.rotations };
       saveProfile(updatedProfile);

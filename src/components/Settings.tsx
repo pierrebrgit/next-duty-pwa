@@ -53,7 +53,11 @@ export default function Settings() {
         {
           pending: 'Fetching roster...',
           success: 'Roster updated!',
-          error: 'Error fetching roster'
+          error: {
+            render({ data }) {
+              return data instanceof Error ? data.message : 'Error fetching roster';
+            },
+          },
         }
       );
       const updatedProfile = { ...profile, rotations: roster.rotations };
