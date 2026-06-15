@@ -13,12 +13,14 @@ import Stack from '@mui/material/Stack';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import FlightLandIcon from '@mui/icons-material/FlightLand';
 import AirportShuttleIcon from '@mui/icons-material/AirportShuttle';
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
 import CircularProgress from '@mui/material/CircularProgress';
 import { styled } from '@mui/material/styles';
 import Switch from '@mui/material/Switch';
@@ -31,6 +33,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Flight, Rotation, UserProfile } from '../types';
 import { loadProfile, saveProfile, getLastSyncTimestamp, setLastSyncTimestamp } from '../utils/storage';
+import { getNextDutyIndex } from '../utils/flightNavigation';
 import { fetchProfileRoster } from '../api/api';
 
 const muiTheme = createTheme({
@@ -130,6 +133,10 @@ export default function NextFlight() {
     setCurrentIndex(i => Math.min(allFlights.length - 1, i + 1));
   }, [allFlights.length]);
 
+  const goToNextDuty = useCallback(() => {
+    setCurrentIndex(getNextDutyIndex(allFlights));
+  }, [allFlights]);
+
   const handleTouchStart = (event: React.TouchEvent) => {
     const touch = event.touches[0];
     touchStart.current = { x: touch.clientX, y: touch.clientY };
@@ -152,13 +159,11 @@ export default function NextFlight() {
     const data = loadProfile();
     if (data) {
       setProfile(data);
-      const today = new Date();
-      const flights = (data.rotations as Rotation[])?.map(r => r.flights).flat()
+      const flights = ((data.rotations as Rotation[] | undefined) || []).map(r => r.flights).flat()
         .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
       
-      setAllFlights(flights || []);
-      const nextIndex = flights.findIndex(f => new Date(f.endDate) > today);
-      setCurrentIndex(nextIndex !== -1 ? nextIndex : (flights.length > 0 ? flights.length - 1 : 0));
+      setAllFlights(flights);
+      setCurrentIndex(getNextDutyIndex(flights));
     }
     setLastSync(getLastSyncTimestamp());
   };
@@ -209,6 +214,8 @@ export default function NextFlight() {
   }
 
   const flight = allFlights[currentIndex];
+  const nextDutyIndex = getNextDutyIndex(allFlights);
+  const isViewingNextDuty = currentIndex === nextDutyIndex;
   const flightLabel = formatFlightNumber(flight.flightNumber);
   const startDate = new Date(flight.startDate);
   const depTime = new Date(startDate.getTime() + 90 * 60 * 1000);
@@ -366,6 +373,20 @@ export default function NextFlight() {
               </Box>
             </CardContent>
           </Card>
+
+          {!isViewingNextDuty && (
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<MyLocationIcon fontSize="small" />}
+                onClick={goToNextDuty}
+                sx={{ borderRadius: 1, textTransform: 'none' }}
+              >
+                Next duty
+              </Button>
+            </Box>
+          )}
 
           <Stack alignItems="center" spacing={0.5} sx={{ mt: 1 }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
