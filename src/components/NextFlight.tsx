@@ -116,7 +116,7 @@ const formatFlightNumber = (flightNumber: string) => {
 
 const SWIPE_THRESHOLD_PX = 70;
 const SWIPE_DIRECTION_LOCK_PX = 12;
-const SWIPE_ANIMATION_MS = 180;
+const SWIPE_ANIMATION_MS = 200;
 const SWIPE_EDGE_RESISTANCE = 0.25;
 const SWIPE_EDGE_MAX_OFFSET_PX = 44;
 
@@ -125,6 +125,153 @@ type TouchGesture = {
   y: number;
   mode: 'pending' | 'horizontal' | 'vertical';
 };
+
+type FlightCardProps = {
+  flight: Flight;
+  profile: UserProfile;
+  isUTC: boolean;
+  displayIndex: number;
+  allFlightsLength: number;
+  interactive: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+  onUtcChange: (checked: boolean) => void;
+};
+
+function FlightCard({
+  flight,
+  profile,
+  isUTC,
+  displayIndex,
+  allFlightsLength,
+  interactive,
+  onPrevious,
+  onNext,
+  onUtcChange,
+}: FlightCardProps) {
+  const flightLabel = formatFlightNumber(flight.flightNumber);
+  const startDate = new Date(flight.startDate);
+  const depTime = new Date(startDate.getTime() + 90 * 60 * 1000);
+  const reportTime = new Date(startDate);
+  const arrivalTime = new Date(flight.endDate);
+
+  const durationMs = arrivalTime.getTime() - depTime.getTime();
+  const durH = Math.floor(durationMs / (1000 * 60 * 60));
+  const durM = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+  const durationStr = `${durH}h${durM ? ' ' + durM + 'm' : ''}`;
+
+  let pickupTime = null;
+  const isAway = flight.origin !== "ORY" && flight.origin !== profile.base;
+
+  if (isAway) {
+    const offsets: Record<string, number> = { LAX: -180, EWR: -150, MIA: -135, SFO: -150, PPT: -135, RUN: -180, CUN: -150 };
+    pickupTime = new Date(depTime.getTime() + (offsets[flight.origin] || 0) * 60 * 1000);
+  }
+
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        borderRadius: 4,
+        minHeight: '440px',
+        pointerEvents: interactive ? 'auto' : 'none',
+      }}
+    >
+      <CardContent sx={{ p: 2, "&:last-child": { pb: 3 } }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, height: '80px' }}>
+          <IconButton disabled={displayIndex === 0} onClick={onPrevious}><NavigateBeforeIcon /></IconButton>
+          <Stack alignItems="center" spacing={0.25}>
+              <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1, mt: 1, fontSize: '0.7rem', letterSpacing: 1.5 }}>{flightLabel}</Typography>
+              <Typography variant="h5" align="center" sx={{ fontWeight: 'bold' }}>{flight.origin} &#x2192; {flight.destination}</Typography>
+          </Stack>
+          <IconButton disabled={displayIndex === allFlightsLength - 1} onClick={onNext}><NavigateNextIcon /></IconButton>
+        </Stack>
+
+        <Typography variant="caption" display="block" align="center" sx={{ mb: 2, color: 'primary.main', fontWeight: 500 }}>{countdown(flight.startDate, flight.endDate)}</Typography>
+
+        <Box sx={{ minHeight: '220px' }}>
+          <Timeline sx={{ p: 0, m: 0 }}>
+              {isAway && (
+              <TimelineItem>
+                  <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
+                  <Typography variant="subtitle2">Pick-up</Typography>
+                  </TimelineOppositeContent>
+                  <TimelineSeparator>
+                  <TimelineConnector />
+                  <TimelineDot variant="outlined"><AirportShuttleIcon fontSize="small"/></TimelineDot>
+                  <TimelineConnector />
+                  </TimelineSeparator>
+                  <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
+                  <Typography variant="body2" color="text.secondary">{pickupTime && dayAndMonth(pickupTime, flight.origin, isUTC)}</Typography>
+                  <Typography variant="body2" color="text.primary">{pickupTime && hoursZoned(pickupTime, flight.origin, isUTC)}</Typography>
+                  </TimelineContent>
+              </TimelineItem>
+              )}
+
+              <TimelineItem>
+              <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
+                  <Typography variant="subtitle2">Report</Typography>
+              </TimelineOppositeContent>
+              <TimelineSeparator>
+                  <TimelineConnector />
+                  <TimelineDot variant="outlined"><AssignmentIndIcon fontSize="small"/></TimelineDot>
+                  <TimelineConnector />
+              </TimelineSeparator>
+              <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
+                  <Typography variant="body2" color="text.secondary">{dayAndMonth(reportTime, flight.origin, isUTC)}</Typography>
+                  <Typography variant="body2" color="text.primary">{hoursZoned(reportTime, flight.origin, isUTC)}</Typography>
+              </TimelineContent>
+              </TimelineItem>
+
+              <TimelineItem>
+              <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1, position: 'relative' }} align="right">
+                  <Typography variant="subtitle2">Departure</Typography>
+                  <Box sx={{ position: 'absolute', bottom: -12, right: 8, bgcolor: 'background.paper', px: 0.5, zIndex: 1 }}>
+                      <Typography variant="caption" color="text.secondary">{flightLabel}</Typography>
+                  </Box>
+              </TimelineOppositeContent>
+              <TimelineSeparator>
+                  <TimelineConnector />
+                  <TimelineDot color="primary"><FlightTakeoffIcon fontSize="small" /></TimelineDot>
+                  <TimelineConnector />
+              </TimelineSeparator>
+              <TimelineContent sx={{ py: '12px', px: 2, flex: 1, position: 'relative' }}>
+                  <Typography variant="body2" color="text.secondary">{dayAndMonth(depTime, flight.origin, isUTC)}</Typography>
+                  <Typography variant="body2" color="text.primary">{hoursZoned(depTime, flight.origin, isUTC)}</Typography>
+                  <Box sx={{ position: 'absolute', bottom: -12, left: 8, bgcolor: 'background.paper', px: 0.5, zIndex: 1 }}>
+                      <Typography variant="caption" color="text.secondary">{durationStr}</Typography>
+                  </Box>
+              </TimelineContent>
+              </TimelineItem>
+
+              <TimelineItem>
+              <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
+                  <Typography variant="subtitle2">Arrival</Typography>
+              </TimelineOppositeContent>
+              <TimelineSeparator>
+                  <TimelineConnector />
+                  <TimelineDot color="primary"><FlightLandIcon fontSize="small" /></TimelineDot>
+                  <TimelineConnector />
+              </TimelineSeparator>
+              <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
+                  <Typography variant="body2" color="text.secondary">{dayAndMonth(arrivalTime, flight.destination, isUTC)}</Typography>
+                  <Typography variant="body2" color="text.primary">{hoursZoned(arrivalTime, flight.destination, isUTC)}</Typography>
+              </TimelineContent>
+              </TimelineItem>
+          </Timeline>
+        </Box>
+
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="caption">Local</Typography>
+            <AntSwitch checked={isUTC} onChange={e => onUtcChange(e.target.checked)} />
+            <Typography variant="caption">UTC</Typography>
+          </Stack>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function NextFlight() {
   const navigate = useNavigate();
@@ -140,8 +287,8 @@ export default function NextFlight() {
   const [isSwipeAnimating, setIsSwipeAnimating] = useState(false);
   const [skipSwipeTransition, setSkipSwipeTransition] = useState(false);
   const touchStart = useRef<TouchGesture | null>(null);
+  const carouselRef = useRef<HTMLDivElement | null>(null);
   const slideOutTimer = useRef<number | null>(null);
-  const slideEndTimer = useRef<number | null>(null);
 
   const goToPreviousFlight = useCallback(() => {
     setCurrentIndex(i => Math.max(0, i - 1));
@@ -160,15 +307,12 @@ export default function NextFlight() {
       window.clearTimeout(slideOutTimer.current);
       slideOutTimer.current = null;
     }
-    if (slideEndTimer.current !== null) {
-      window.clearTimeout(slideEndTimer.current);
-      slideEndTimer.current = null;
-    }
   }, []);
 
-  const getSlideDistance = () => {
-    return Math.max(360, Math.min(window.innerWidth * 1.15, 560));
-  };
+  const getSlideDistance = useCallback(() => {
+    return carouselRef.current?.clientWidth ||
+      Math.max(320, Math.min(window.innerWidth - 48, 400));
+  }, []);
 
   const resetSwipe = useCallback(() => {
     touchStart.current = null;
@@ -182,33 +326,26 @@ export default function NextFlight() {
     touchStart.current = null;
 
     const slideDistance = getSlideDistance();
-    const exitOffset = direction === 1 ? -slideDistance : slideDistance;
-    const entryOffset = direction === 1 ? slideDistance : -slideDistance;
+    const targetOffset = direction === 1 ? -slideDistance : slideDistance;
 
     setIsDragging(false);
     setIsSwipeAnimating(true);
     setSkipSwipeTransition(false);
-    setDragOffset(exitOffset);
+    setDragOffset(targetOffset);
 
     slideOutTimer.current = window.setTimeout(() => {
       setSkipSwipeTransition(true);
       setCurrentIndex(i => Math.max(0, Math.min(allFlights.length - 1, i + direction)));
-      setDragOffset(entryOffset);
+      setDragOffset(0);
 
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
           setSkipSwipeTransition(false);
-          setDragOffset(0);
+          setIsSwipeAnimating(false);
         });
       });
     }, SWIPE_ANIMATION_MS);
-
-    slideEndTimer.current = window.setTimeout(() => {
-      setIsSwipeAnimating(false);
-      setSkipSwipeTransition(false);
-      setDragOffset(0);
-    }, SWIPE_ANIMATION_MS * 2 + 40);
-  }, [allFlights.length, clearSwipeTimers]);
+  }, [allFlights.length, clearSwipeTimers, getSlideDistance]);
 
   const handleTouchStart = (event: React.TouchEvent) => {
     if (isSwipeAnimating) return;
@@ -338,28 +475,12 @@ export default function NextFlight() {
     );
   }
 
-  const flight = allFlights[currentIndex];
   const nextDutyIndex = getNextDutyIndex(allFlights);
   const isViewingNextDuty = currentIndex === nextDutyIndex;
-  const flightLabel = formatFlightNumber(flight.flightNumber);
-  const startDate = new Date(flight.startDate);
-  const depTime = new Date(startDate.getTime() + 90 * 60 * 1000);
-  const reportTime = new Date(startDate);
-  const arrivalTime = new Date(flight.endDate);
-  
-  const durationMs = arrivalTime.getTime() - depTime.getTime();
-  const durH = Math.floor(durationMs / (1000 * 60 * 60));
-  const durM = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-  const durationStr = `${durH}h${durM ? ' ' + durM + 'm' : ''}`;
-
-  let pickupTime = null;
-  const isAway = flight.origin !== "ORY" && flight.origin !== profile.base;
-  
-  if (isAway) {
-    const offsets: Record<string, number> = { LAX: -180, EWR: -150, MIA: -135, SFO: -150, PPT: -135, RUN: -180, CUN: -150 };
-    pickupTime = new Date(depTime.getTime() + (offsets[flight.origin] || 0) * 60 * 1000);
-  }
-
+  const slideIndexes = [currentIndex - 1, currentIndex, currentIndex + 1];
+  const trackTransition = isDragging || skipSwipeTransition ?
+    'none' :
+    `transform ${SWIPE_ANIMATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
   const syncStatus = getSyncStatus(lastSync);
 
   return (
@@ -399,116 +520,53 @@ export default function NextFlight() {
             </IconButton>
           </Stack>
 
-          <Card
-            variant="outlined"
+          <Box
+            ref={carouselRef}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchCancel}
             sx={{
-              borderRadius: 4,
-              minHeight: '440px',
+              overflow: 'hidden',
               touchAction: 'pan-y',
-              transform: `translateX(${dragOffset}px) rotate(${dragOffset / 90}deg)`,
-              transition: isDragging || skipSwipeTransition ?
-                'none' :
-                `transform ${SWIPE_ANIMATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
-              willChange: 'transform',
+              width: '100%',
             }}
           >
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 3 } }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, height: '80px' }}>
-                <IconButton disabled={currentIndex === 0} onClick={goToPreviousFlight}><NavigateBeforeIcon /></IconButton>
-                <Stack alignItems="center" spacing={0.25}>
-                    <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1, mt: 1, fontSize: '0.7rem', letterSpacing: 1.5 }}>{flightLabel}</Typography>
-                    <Typography variant="h5" align="center" sx={{ fontWeight: 'bold' }}>{flight.origin} &#x2192; {flight.destination}</Typography>
-                </Stack>
-                <IconButton disabled={currentIndex === allFlights.length - 1} onClick={goToNextFlight}><NavigateNextIcon /></IconButton>
-              </Stack>
-              
-              <Typography variant="caption" display="block" align="center" sx={{ mb: 2, color: 'primary.main', fontWeight: 500 }}>{countdown(flight.startDate, flight.endDate)}</Typography>
-              
-              <Box sx={{ minHeight: '220px' }}>
-                <Timeline sx={{ p: 0, m: 0 }}>
-                    {isAway && (
-                    <TimelineItem>
-                        <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
-                        <Typography variant="subtitle2">Pick-up</Typography>
-                        </TimelineOppositeContent>
-                        <TimelineSeparator>
-                        <TimelineConnector />
-                        <TimelineDot variant="outlined"><AirportShuttleIcon fontSize="small"/></TimelineDot>
-                        <TimelineConnector />
-                        </TimelineSeparator>
-                        <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
-                        <Typography variant="body2" color="text.secondary">{pickupTime && dayAndMonth(pickupTime, flight.origin, isUTC)}</Typography>
-                        <Typography variant="body2" color="text.primary">{pickupTime && hoursZoned(pickupTime, flight.origin, isUTC)}</Typography>
-                        </TimelineContent>
-                    </TimelineItem>
-                    )}
-
-                    <TimelineItem>
-                    <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
-                        <Typography variant="subtitle2">Report</Typography>
-                    </TimelineOppositeContent>
-                    <TimelineSeparator>
-                        <TimelineConnector />
-                        <TimelineDot variant="outlined"><AssignmentIndIcon fontSize="small"/></TimelineDot>
-                        <TimelineConnector />
-                    </TimelineSeparator>
-                    <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
-                        <Typography variant="body2" color="text.secondary">{dayAndMonth(reportTime, flight.origin, isUTC)}</Typography>
-                        <Typography variant="body2" color="text.primary">{hoursZoned(reportTime, flight.origin, isUTC)}</Typography>
-                    </TimelineContent>
-                    </TimelineItem>
-
-                    <TimelineItem>
-                    <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1, position: 'relative' }} align="right">
-                        <Typography variant="subtitle2">Departure</Typography>
-                        <Box sx={{ position: 'absolute', bottom: -12, right: 8, bgcolor: 'background.paper', px: 0.5, zIndex: 1 }}>
-                            <Typography variant="caption" color="text.secondary">{flightLabel}</Typography>
-                        </Box>
-                    </TimelineOppositeContent>
-                    <TimelineSeparator>
-                        <TimelineConnector />
-                        <TimelineDot color="primary"><FlightTakeoffIcon fontSize="small" /></TimelineDot>
-                        <TimelineConnector />
-                    </TimelineSeparator>
-                    <TimelineContent sx={{ py: '12px', px: 2, flex: 1, position: 'relative' }}>
-                        <Typography variant="body2" color="text.secondary">{dayAndMonth(depTime, flight.origin, isUTC)}</Typography>
-                        <Typography variant="body2" color="text.primary">{hoursZoned(depTime, flight.origin, isUTC)}</Typography>
-                        <Box sx={{ position: 'absolute', bottom: -12, left: 8, bgcolor: 'background.paper', px: 0.5, zIndex: 1 }}>
-                            <Typography variant="caption" color="text.secondary">{durationStr}</Typography>
-                        </Box>
-                    </TimelineContent>
-                    </TimelineItem>
-
-                    <TimelineItem>
-                    <TimelineOppositeContent sx={{ m: 'auto 0', flex: 1 }} align="right">
-                        <Typography variant="subtitle2">Arrival</Typography>
-                    </TimelineOppositeContent>
-                    <TimelineSeparator>
-                        <TimelineConnector />
-                        <TimelineDot color="primary"><FlightLandIcon fontSize="small" /></TimelineDot>
-                        <TimelineConnector />
-                    </TimelineSeparator>
-                    <TimelineContent sx={{ py: '12px', px: 2, flex: 1 }}>
-                        <Typography variant="body2" color="text.secondary">{dayAndMonth(arrivalTime, flight.destination, isUTC)}</Typography>
-                        <Typography variant="body2" color="text.primary">{hoursZoned(arrivalTime, flight.destination, isUTC)}</Typography>
-                    </TimelineContent>
-                    </TimelineItem>
-                </Timeline>
-              </Box>
-
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="caption">Local</Typography>
-                  <AntSwitch checked={isUTC} onChange={e => setIsUTC(e.target.checked)} />
-                  <Typography variant="caption">UTC</Typography>
-                </Stack>
-              </Box>
-            </CardContent>
-          </Card>
+            <Box
+              sx={{
+                display: 'flex',
+                transform: `translateX(calc(-100% + ${dragOffset}px))`,
+                transition: trackTransition,
+                willChange: 'transform',
+              }}
+            >
+              {slideIndexes.map((flightIndex, slidePosition) => (
+                <Box
+                  key={`${flightIndex}-${slidePosition}`}
+                  sx={{
+                    flex: '0 0 100%',
+                    px: 0,
+                  }}
+                >
+                  {allFlights[flightIndex] ? (
+                    <FlightCard
+                      flight={allFlights[flightIndex]}
+                      profile={profile}
+                      isUTC={isUTC}
+                      displayIndex={flightIndex}
+                      allFlightsLength={allFlights.length}
+                      interactive={slidePosition === 1 && !isSwipeAnimating}
+                      onPrevious={goToPreviousFlight}
+                      onNext={goToNextFlight}
+                      onUtcChange={setIsUTC}
+                    />
+                  ) : (
+                    <Box sx={{ minHeight: '440px' }} />
+                  )}
+                </Box>
+              ))}
+            </Box>
+          </Box>
 
           {!isViewingNextDuty && (
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
