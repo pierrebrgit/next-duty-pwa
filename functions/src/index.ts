@@ -11,8 +11,8 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "https://bee-buddy-2.firebaseapp.com",
 ];
 
-const FETCH_TIMEOUT_MS = 15000;
-const MAX_ICS_BYTES = 1_000_000;
+const FETCH_TIMEOUT_MS = 30000;
+const MAX_ICS_BYTES = 10_000_000;
 const MAX_URL_LENGTH = 2048;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 30;
@@ -331,11 +331,11 @@ const fetchCalendarText = async (url: URL): Promise<string> => {
     throw new Error("Calendar response is too large");
   }
 
-  const text = await response.text();
-  if (text.length > MAX_ICS_BYTES) {
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength > MAX_ICS_BYTES) {
     throw new Error("Calendar response is too large");
   }
-  return text;
+  return Buffer.from(buffer).toString("utf8");
 };
 
 const clientKey = (req: RequestLike): string => {
@@ -359,6 +359,16 @@ const isRateLimited = (key: string): boolean => {
 
 const getErrorMessage = (error: unknown): string => {
   return error instanceof Error ? error.message : "Unknown error";
+};
+
+const statusForErrorMessage = (message: string): number => {
+  if (/too large/i.test(message)) return 413;
+  const clientErrorPattern =
+    /Missing|Invalid|not allowed|too long|allowlisted|must use/i;
+  if (clientErrorPattern.test(message)) {
+    return 400;
+  }
+  return 502;
 };
 
 export const getProfile = onRequest(async (req, res) => {
@@ -397,16 +407,14 @@ export const getProfile = onRequest(async (req, res) => {
       res.send(roster);
     } catch (error: unknown) {
       const message = getErrorMessage(error);
-      const clientErrorPattern =
-        /Missing|Invalid|not allowed|too long|allowlisted|must use/i;
-      const isClientError = clientErrorPattern.test(message);
+      const status = statusForErrorMessage(message);
 
-      if (!isClientError) {
+      if (status === 502) {
         console.error("Calendar processing failed", message);
       }
 
-      res.status(isClientError ? 400 : 502).send({
-        message: isClientError ? message : "Unable to process calendar",
+      res.status(status).send({
+        message: status === 502 ? "Unable to process calendar" : message,
       });
     }
   });
