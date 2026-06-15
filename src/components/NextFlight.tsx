@@ -545,7 +545,8 @@ export default function NextFlight() {
                   key={`${flightIndex}-${slidePosition}`}
                   sx={{
                     flex: '0 0 100%',
-                    px: 0,
+                    boxSizing: 'border-box',
+                    px: 0.75,
                   }}
                 >
                   {allFlights[flightIndex] ? (
