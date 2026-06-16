@@ -452,15 +452,6 @@ export default function NextFlight() {
     setCurrentIndex(i => Math.min(allFlights.length - 1, i + 1));
   }, [allFlights.length]);
 
-  const goToNextDuty = useCallback(() => {
-    setCurrentIndex(getNextDutyIndex(allFlights));
-  }, [allFlights]);
-
-  const focusNextDutyInCompactList = useCallback(() => {
-    setCurrentIndex(getNextDutyIndex(allFlights));
-    setCompactNextDutyFocusSignal(signal => signal + 1);
-  }, [allFlights]);
-
   const clearSwipeTimers = useCallback(() => {
     if (slideOutTimer.current !== null) {
       window.clearTimeout(slideOutTimer.current);
@@ -474,11 +465,53 @@ export default function NextFlight() {
   }, []);
 
   const resetSwipe = useCallback(() => {
+    clearSwipeTimers();
     touchStart.current = null;
     setIsDragging(false);
+    setIsSwipeAnimating(false);
     setSkipSwipeTransition(false);
     setDragOffset(0);
-  }, []);
+  }, [clearSwipeTimers]);
+
+  const jumpToFlight = useCallback((index: number) => {
+    clearSwipeTimers();
+    touchStart.current = null;
+    setIsDragging(false);
+    setIsSwipeAnimating(false);
+    setSkipSwipeTransition(true);
+    setDragOffset(0);
+    setCurrentIndex(Math.max(0, Math.min(allFlights.length - 1, index)));
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setSkipSwipeTransition(false);
+      });
+    });
+  }, [allFlights.length, clearSwipeTimers]);
+
+  const goToNextDuty = useCallback(() => {
+    jumpToFlight(getNextDutyIndex(allFlights));
+  }, [allFlights, jumpToFlight]);
+
+  const focusNextDutyInCompactList = useCallback(() => {
+    jumpToFlight(getNextDutyIndex(allFlights));
+    setCompactNextDutyFocusSignal(signal => signal + 1);
+  }, [allFlights, jumpToFlight]);
+
+  const handleNextDutyShortcut = useCallback(() => {
+    if (viewMode === 'compact') {
+      focusNextDutyInCompactList();
+      return;
+    }
+
+    goToNextDuty();
+  }, [focusNextDutyInCompactList, goToNextDuty, viewMode]);
+
+  const handleNextDutyPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === 'mouse') return;
+    event.preventDefault();
+    handleNextDutyShortcut();
+  }, [handleNextDutyShortcut]);
 
   const openFlightFromList = useCallback((index: number) => {
     resetSwipe();
@@ -699,7 +732,8 @@ export default function NextFlight() {
             </IconButton>
 
             <IconButton
-              onClick={viewMode === 'compact' ? focusNextDutyInCompactList : goToNextDuty}
+              onPointerDown={handleNextDutyPointerDown}
+              onClick={handleNextDutyShortcut}
               size="small"
               aria-label="Go to next duty"
               title="Next duty"
