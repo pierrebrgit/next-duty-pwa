@@ -33,10 +33,11 @@ import ViewCarouselIcon from '@mui/icons-material/ViewCarousel';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Flight, Rotation, UserProfile } from '../types';
-import { loadProfile, saveProfile, getLastSyncTimestamp, setLastSyncTimestamp } from '../utils/storage';
+import { Flight, Rotation, SyncMetadata, UserProfile } from '../types';
+import { loadProfile, saveProfile, getLastSyncTimestamp, getSyncMetadata, setLastSyncTimestamp } from '../utils/storage';
 import { getNextDutyIndex } from '../utils/flightNavigation';
 import { getAirportTimeZone, getPickupOffsetMinutes } from '../utils/airportData';
+import { buildSyncMetadata, formatSyncSummary } from '../utils/syncDiagnostics';
 import { fetchProfileRoster } from '../api/api';
 
 const muiTheme = createTheme({
@@ -415,6 +416,7 @@ export default function NextFlight() {
   const [compactPastCount, setCompactPastCount] = useState(COMPACT_INITIAL_PAST_COUNT);
   const [compactFutureCount, setCompactFutureCount] = useState(COMPACT_INITIAL_FUTURE_COUNT);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [syncMetadata, setSyncMetadata] = useState<SyncMetadata | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isSwipeAnimating, setIsSwipeAnimating] = useState(false);
@@ -563,6 +565,7 @@ export default function NextFlight() {
       setCurrentIndex(getNextDutyIndex(flights));
     }
     setLastSync(getLastSyncTimestamp());
+    setSyncMetadata(getSyncMetadata());
   };
 
   useEffect(() => {
@@ -596,9 +599,10 @@ export default function NextFlight() {
         }
       );
       const updatedProfile = { ...profile, rotations: roster.rotations };
+      const metadata = setLastSyncTimestamp(buildSyncMetadata(roster));
       saveProfile(updatedProfile);
-      setLastSyncTimestamp();
       loadLocalData();
+      if (metadata) setSyncMetadata(metadata);
     } catch (err) {
       console.error(err);
     } finally {
@@ -771,6 +775,11 @@ export default function NextFlight() {
             <Typography variant="caption" sx={{ color: syncStatus.color, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 1.2 }}>
                 {syncStatus.text}
             </Typography>
+            {syncMetadata && (
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                {formatSyncSummary(syncMetadata)}
+              </Typography>
+            )}
           </Stack>
         </Stack>
       </Box>

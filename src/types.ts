@@ -19,6 +19,18 @@ export interface Roster {
   unmatchedFlights?: Flight[];
 }
 
+export interface SyncMetadata {
+  syncedAt: string;
+  base: string;
+  rotationCount: number;
+  flightCount: number;
+  unmatchedFlightCount: number;
+  periodStart: string | null;
+  periodEnd: string | null;
+}
+
+export type SyncMetadataInput = Omit<SyncMetadata, 'syncedAt'>;
+
 export interface UserProfile {
   uid: string;
   nickname: string;
