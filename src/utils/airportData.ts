@@ -35,10 +35,21 @@ export const AIRPORTS: Record<string, AirportInfo> = {
   DWC: {iata: "DWC", icao: "OMDW", label: "Dubai Al Maktoum", timeZone: "Asia/Dubai"},
 };
 
+const AIRPORT_CODE_ALIASES = Object.values(AIRPORTS).reduce<Record<string, string>>((aliases, airport) => {
+  aliases[airport.iata] = airport.iata;
+  if (airport.icao) aliases[airport.icao] = airport.iata;
+  return aliases;
+}, {});
+
+export const toIata = (airport: string): string => {
+  const normalized = airport.toUpperCase().trim();
+  return AIRPORT_CODE_ALIASES[normalized] || normalized;
+};
+
 export const getAirportTimeZone = (airport: string): string => {
-  return AIRPORTS[airport.toUpperCase()]?.timeZone || "UTC";
+  return AIRPORTS[toIata(airport)]?.timeZone || "UTC";
 };
 
 export const getPickupOffsetMinutes = (airport: string): number | undefined => {
-  return AIRPORTS[airport.toUpperCase()]?.pickupOffsetMinutes;
+  return AIRPORTS[toIata(airport)]?.pickupOffsetMinutes;
 };

@@ -1,17 +1,21 @@
 import { UserProfile, Flight, SyncMetadata, SyncMetadataInput } from '../types';
+import { normalizeProfileAirports } from './flights';
 
 const STORAGE_KEY = 'next_duty_profile';
 const SYNC_KEY = 'next_duty_last_sync';
 const SYNC_METADATA_KEY = 'next_duty_sync_metadata';
 
 export const saveProfile = (profile: UserProfile) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeProfileAirports(profile)));
 };
 
 export const loadProfile = (): UserProfile | null => {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    const profile = normalizeProfileAirports(JSON.parse(data));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+    return profile;
   } catch {
     clearProfile();
     return null;
