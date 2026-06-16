@@ -29,6 +29,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
+import ViewCarouselIcon from '@mui/icons-material/ViewCarousel';
+import ViewListIcon from '@mui/icons-material/ViewList';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Flight, Rotation, UserProfile } from '../types';
@@ -106,12 +108,17 @@ const SWIPE_DIRECTION_LOCK_PX = 12;
 const SWIPE_ANIMATION_MS = 200;
 const SWIPE_EDGE_RESISTANCE = 0.25;
 const SWIPE_EDGE_MAX_OFFSET_PX = 44;
+const COMPACT_INITIAL_PAST_COUNT = 3;
+const COMPACT_INITIAL_FUTURE_COUNT = 20;
+const COMPACT_PAGE_SIZE = 20;
 
 type TouchGesture = {
   x: number;
   y: number;
   mode: 'pending' | 'horizontal' | 'vertical';
 };
+
+type ViewMode = 'card' | 'compact';
 
 type FlightCardProps = {
   flight: Flight;
@@ -255,6 +262,147 @@ function FlightCard({
   );
 }
 
+type CompactFlightListProps = {
+  flights: Flight[];
+  isUTC: boolean;
+  currentIndex: number;
+  nextDutyIndex: number;
+  visibleStart: number;
+  visibleEnd: number;
+  onSelectFlight: (index: number) => void;
+  onShowEarlier: () => void;
+  onShowMore: () => void;
+};
+
+const compactDate = (date: Date, airport: string, isUTC: boolean) => {
+  const zone = isUTC ? "UTC" : getAirportTimeZone(airport);
+  return date.toLocaleString('en-US', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: zone,
+  });
+};
+
+function CompactFlightList({
+  flights,
+  isUTC,
+  currentIndex,
+  nextDutyIndex,
+  visibleStart,
+  visibleEnd,
+  onSelectFlight,
+  onShowEarlier,
+  onShowMore,
+}: CompactFlightListProps) {
+  const visibleFlights = flights.slice(visibleStart, visibleEnd);
+  const hasEarlier = visibleStart > 0;
+  const hasMore = visibleEnd < flights.length;
+
+  return (
+    <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+      <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+        <Box sx={{ maxHeight: 'calc(100vh - 225px)', overflowY: 'auto' }}>
+          {hasEarlier && (
+            <Box sx={{ px: 1, py: 0.75, borderBottom: 1, borderColor: 'divider' }}>
+              <Button fullWidth size="small" onClick={onShowEarlier} sx={{ textTransform: 'none' }}>
+                Show earlier
+              </Button>
+            </Box>
+          )}
+
+          {visibleFlights.map((flight, offset) => {
+            const index = visibleStart + offset;
+            const reportTime = new Date(flight.startDate);
+            const departureTime = new Date(reportTime.getTime() + 90 * 60 * 1000);
+            const arrivalTime = new Date(flight.endDate);
+            const isSelected = index === currentIndex;
+            const isNextDuty = index === nextDutyIndex;
+
+            return (
+              <Box
+                key={`${flight.flightNumber}-${flight.startDate}-${index}`}
+                component="button"
+                type="button"
+                onClick={() => onSelectFlight(index)}
+                sx={{
+                  width: '100%',
+                  border: 0,
+                  borderBottom: offset === visibleFlights.length - 1 && !hasMore ? 0 : 1,
+                  borderColor: 'divider',
+                  bgcolor: isSelected ? 'rgba(25, 118, 210, 0.18)' : 'transparent',
+                  color: 'inherit',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.25,
+                  minHeight: 58,
+                  px: 1.25,
+                  py: 0.9,
+                  textAlign: 'left',
+                  '&:active': {
+                    bgcolor: 'rgba(25, 118, 210, 0.26)',
+                  },
+                }}
+              >
+                <Box sx={{ width: 58, flex: '0 0 58px' }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.15, display: 'block' }}>
+                    {compactDate(reportTime, flight.origin, isUTC)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.67rem' }}>
+                    #{index + 1}
+                  </Typography>
+                </Box>
+
+                <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+                  <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, flexShrink: 0 }}>
+                      {formatFlightNumber(flight.flightNumber)}
+                    </Typography>
+                    <Typography variant="body2" noWrap sx={{ fontWeight: 600, minWidth: 0 }}>
+                      {flight.origin} &#x2192; {flight.destination}
+                    </Typography>
+                    {isNextDuty && (
+                      <Box
+                        component="span"
+                        sx={{
+                          border: 1,
+                          borderColor: 'primary.main',
+                          borderRadius: 0.75,
+                          color: 'primary.main',
+                          flexShrink: 0,
+                          fontSize: '0.62rem',
+                          fontWeight: 700,
+                          lineHeight: 1,
+                          px: 0.5,
+                          py: 0.25,
+                        }}
+                      >
+                        Next
+                      </Box>
+                    )}
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" noWrap>
+                    Rep {hoursZoned(reportTime, flight.origin, isUTC)} · Dep {hoursZoned(departureTime, flight.origin, isUTC)} · Arr {hoursZoned(arrivalTime, flight.destination, isUTC)}
+                  </Typography>
+                </Stack>
+              </Box>
+            );
+          })}
+
+          {hasMore && (
+            <Box sx={{ px: 1, py: 0.75 }}>
+              <Button fullWidth size="small" onClick={onShowMore} sx={{ textTransform: 'none' }}>
+                Show more future
+              </Button>
+            </Box>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function NextFlight() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -263,6 +411,9 @@ export default function NextFlight() {
   const [allFlights, setAllFlights] = useState<Flight[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isUTC, setIsUTC] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [compactPastCount, setCompactPastCount] = useState(COMPACT_INITIAL_PAST_COUNT);
+  const [compactFutureCount, setCompactFutureCount] = useState(COMPACT_INITIAL_FUTURE_COUNT);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -302,6 +453,12 @@ export default function NextFlight() {
     setSkipSwipeTransition(false);
     setDragOffset(0);
   }, []);
+
+  const openFlightFromList = useCallback((index: number) => {
+    resetSwipe();
+    setCurrentIndex(index);
+    setViewMode('card');
+  }, [resetSwipe]);
 
   const animateSwipeToFlight = useCallback((direction: -1 | 1) => {
     clearSwipeTimers();
@@ -417,6 +574,11 @@ export default function NextFlight() {
     return () => clearSwipeTimers();
   }, [clearSwipeTimers]);
 
+  useEffect(() => {
+    setCompactPastCount(COMPACT_INITIAL_PAST_COUNT);
+    setCompactFutureCount(COMPACT_INITIAL_FUTURE_COUNT);
+  }, [allFlights.length]);
+
   const handleQuickSync = async () => {
     if (!profile?.webcal || !profile?.base) return;
     setSyncing(true);
@@ -472,6 +634,11 @@ export default function NextFlight() {
     'none' :
     `transform ${SWIPE_ANIMATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
   const syncStatus = getSyncStatus(lastSync);
+  const compactStart = Math.max(0, nextDutyIndex - compactPastCount);
+  const compactEnd = Math.min(
+    allFlights.length,
+    nextDutyIndex + compactFutureCount + 1
+  );
 
   return (
     <ThemeProvider theme={muiTheme}>
@@ -500,6 +667,16 @@ export default function NextFlight() {
             </IconButton>
             
             <Typography variant="h6" align="center" sx={{ fontSize: '1.1rem', fontWeight: 500 }}>{profile.nickname}'s duty</Typography>
+
+            <IconButton
+              onClick={() => setViewMode(mode => mode === 'card' ? 'compact' : 'card')}
+              size="small"
+              aria-label={viewMode === 'card' ? 'Show compact list' : 'Show card view'}
+              title={viewMode === 'card' ? 'Compact list' : 'Card view'}
+              sx={{ position: 'absolute', right: 36 }}
+            >
+              {viewMode === 'card' ? <ViewListIcon /> : <ViewCarouselIcon />}
+            </IconButton>
             
             <IconButton 
                 onClick={() => navigate("/settings")} 
@@ -510,54 +687,68 @@ export default function NextFlight() {
             </IconButton>
           </Stack>
 
-          <Box
-            ref={carouselRef}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchCancel}
-            sx={{
-              overflow: 'hidden',
-              touchAction: 'pan-y',
-              width: '100%',
-            }}
-          >
+          {viewMode === 'compact' ? (
+            <CompactFlightList
+              flights={allFlights}
+              isUTC={isUTC}
+              currentIndex={currentIndex}
+              nextDutyIndex={nextDutyIndex}
+              visibleStart={compactStart}
+              visibleEnd={compactEnd}
+              onSelectFlight={openFlightFromList}
+              onShowEarlier={() => setCompactPastCount(count => count + COMPACT_PAGE_SIZE)}
+              onShowMore={() => setCompactFutureCount(count => count + COMPACT_PAGE_SIZE)}
+            />
+          ) : (
             <Box
+              ref={carouselRef}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchCancel}
               sx={{
-                display: 'flex',
-                transform: `translateX(calc(-100% + ${dragOffset}px))`,
-                transition: trackTransition,
-                willChange: 'transform',
+                overflow: 'hidden',
+                touchAction: 'pan-y',
+                width: '100%',
               }}
             >
-              {slideIndexes.map((flightIndex, slidePosition) => (
-                <Box
-                  key={`${flightIndex}-${slidePosition}`}
-                  sx={{
-                    flex: '0 0 100%',
-                    boxSizing: 'border-box',
-                    px: 0.75,
-                  }}
-                >
-                  {allFlights[flightIndex] ? (
-                    <FlightCard
-                      flight={allFlights[flightIndex]}
-                      profile={profile}
-                      isUTC={isUTC}
-                      displayIndex={flightIndex}
-                      allFlightsLength={allFlights.length}
-                      interactive={slidePosition === 1 && !isSwipeAnimating}
-                      onPrevious={goToPreviousFlight}
-                      onNext={goToNextFlight}
-                      onUtcChange={setIsUTC}
-                    />
-                  ) : (
-                    <Box sx={{ minHeight: '440px' }} />
-                  )}
-                </Box>
-              ))}
+              <Box
+                sx={{
+                  display: 'flex',
+                  transform: `translateX(calc(-100% + ${dragOffset}px))`,
+                  transition: trackTransition,
+                  willChange: 'transform',
+                }}
+              >
+                {slideIndexes.map((flightIndex, slidePosition) => (
+                  <Box
+                    key={`${flightIndex}-${slidePosition}`}
+                    sx={{
+                      flex: '0 0 100%',
+                      boxSizing: 'border-box',
+                      px: 0.75,
+                    }}
+                  >
+                    {allFlights[flightIndex] ? (
+                      <FlightCard
+                        flight={allFlights[flightIndex]}
+                        profile={profile}
+                        isUTC={isUTC}
+                        displayIndex={flightIndex}
+                        allFlightsLength={allFlights.length}
+                        interactive={slidePosition === 1 && !isSwipeAnimating}
+                        onPrevious={goToPreviousFlight}
+                        onNext={goToNextFlight}
+                        onUtcChange={setIsUTC}
+                      />
+                    ) : (
+                      <Box sx={{ minHeight: '440px' }} />
+                    )}
+                  </Box>
+                ))}
+              </Box>
             </Box>
-          </Box>
+          )}
 
           {!isViewingNextDuty && (
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
