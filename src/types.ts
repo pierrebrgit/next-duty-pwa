@@ -15,6 +15,7 @@ export interface Rotation {
 
 export interface Roster {
   base: string;
+  flights?: Flight[];
   rotations: Rotation[];
   unmatchedFlights?: Flight[];
 }
@@ -22,9 +23,9 @@ export interface Roster {
 export interface SyncMetadata {
   syncedAt: string;
   base: string;
-  rotationCount: number;
   flightCount: number;
-  unmatchedFlightCount: number;
+  ungroupedFlightCount: number;
+  parserGroupCount?: number;
   periodStart: string | null;
   periodEnd: string | null;
 }
@@ -39,6 +40,7 @@ export interface UserProfile {
   position: string;
   webcal: string;
   buddies?: string[];
+  flights?: Flight[];
   rotations?: Rotation[];
   setup?: number;
 }

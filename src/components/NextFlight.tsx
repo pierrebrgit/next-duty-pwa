@@ -33,10 +33,11 @@ import ViewCarouselIcon from '@mui/icons-material/ViewCarousel';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Flight, Rotation, SyncMetadata, UserProfile } from '../types';
+import { Flight, SyncMetadata, UserProfile } from '../types';
 import { loadProfile, saveProfile, getLastSyncTimestamp, getSyncMetadata, setLastSyncTimestamp } from '../utils/storage';
 import { getNextDutyIndex } from '../utils/flightNavigation';
 import { getAirportTimeZone, getPickupOffsetMinutes } from '../utils/airportData';
+import { getProfileFlights } from '../utils/flights';
 import { buildSyncMetadata, formatSyncSummary } from '../utils/syncDiagnostics';
 import { fetchProfileRoster } from '../api/api';
 
@@ -270,7 +271,9 @@ type CompactFlightListProps = {
   nextDutyIndex: number;
   visibleStart: number;
   visibleEnd: number;
+  focusNextDutySignal: number;
   onSelectFlight: (index: number) => void;
+  onNextDutyVisibilityChange: (visible: boolean) => void;
   onShowEarlier: () => void;
   onShowMore: () => void;
 };
@@ -292,18 +295,53 @@ function CompactFlightList({
   nextDutyIndex,
   visibleStart,
   visibleEnd,
+  focusNextDutySignal,
   onSelectFlight,
+  onNextDutyVisibilityChange,
   onShowEarlier,
   onShowMore,
 }: CompactFlightListProps) {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const nextDutyRowRef = useRef<HTMLButtonElement | null>(null);
   const visibleFlights = flights.slice(visibleStart, visibleEnd);
   const hasEarlier = visibleStart > 0;
   const hasMore = visibleEnd < flights.length;
 
+  const updateNextDutyVisibility = useCallback(() => {
+    const container = scrollContainerRef.current;
+    const row = nextDutyRowRef.current;
+    if (!container || !row) {
+      onNextDutyVisibilityChange(false);
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    onNextDutyVisibilityChange(
+      rowRect.bottom > containerRect.top && rowRect.top < containerRect.bottom
+    );
+  }, [onNextDutyVisibilityChange]);
+
+  useEffect(() => {
+    updateNextDutyVisibility();
+    window.addEventListener('resize', updateNextDutyVisibility);
+    return () => window.removeEventListener('resize', updateNextDutyVisibility);
+  }, [updateNextDutyVisibility, visibleStart, visibleEnd, flights.length]);
+
+  useEffect(() => {
+    if (!focusNextDutySignal) return;
+    nextDutyRowRef.current?.scrollIntoView({ block: 'center' });
+    window.requestAnimationFrame(updateNextDutyVisibility);
+  }, [focusNextDutySignal, updateNextDutyVisibility]);
+
   return (
     <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-        <Box sx={{ maxHeight: 'calc(100vh - 225px)', overflowY: 'auto' }}>
+        <Box
+          ref={scrollContainerRef}
+          onScroll={updateNextDutyVisibility}
+          sx={{ maxHeight: 'calc(100vh - 225px)', overflowY: 'auto' }}
+        >
           {hasEarlier && (
             <Box sx={{ px: 1, py: 0.75, borderBottom: 1, borderColor: 'divider' }}>
               <Button fullWidth size="small" onClick={onShowEarlier} sx={{ textTransform: 'none' }}>
@@ -323,6 +361,7 @@ function CompactFlightList({
             return (
               <Box
                 key={`${flight.flightNumber}-${flight.startDate}-${index}`}
+                ref={isNextDuty ? nextDutyRowRef : undefined}
                 component="button"
                 type="button"
                 onClick={() => onSelectFlight(index)}
@@ -415,6 +454,8 @@ export default function NextFlight() {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [compactPastCount, setCompactPastCount] = useState(COMPACT_INITIAL_PAST_COUNT);
   const [compactFutureCount, setCompactFutureCount] = useState(COMPACT_INITIAL_FUTURE_COUNT);
+  const [compactNextDutyFocusSignal, setCompactNextDutyFocusSignal] = useState(0);
+  const [isCompactNextDutyVisible, setIsCompactNextDutyVisible] = useState(true);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncMetadata, setSyncMetadata] = useState<SyncMetadata | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
@@ -435,6 +476,11 @@ export default function NextFlight() {
 
   const goToNextDuty = useCallback(() => {
     setCurrentIndex(getNextDutyIndex(allFlights));
+  }, [allFlights]);
+
+  const focusNextDutyInCompactList = useCallback(() => {
+    setCurrentIndex(getNextDutyIndex(allFlights));
+    setCompactNextDutyFocusSignal(signal => signal + 1);
   }, [allFlights]);
 
   const clearSwipeTimers = useCallback(() => {
@@ -558,7 +604,7 @@ export default function NextFlight() {
     const data = loadProfile();
     if (data) {
       setProfile(data);
-      const flights = ((data.rotations as Rotation[] | undefined) || []).map(r => r.flights).flat()
+      const flights = getProfileFlights(data)
         .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
       
       setAllFlights(flights);
@@ -598,7 +644,11 @@ export default function NextFlight() {
           },
         }
       );
-      const updatedProfile = { ...profile, rotations: roster.rotations };
+      const updatedProfile = {
+        ...profile,
+        flights: roster.flights || [],
+        rotations: roster.rotations,
+      };
       const metadata = setLastSyncTimestamp(buildSyncMetadata(roster));
       saveProfile(updatedProfile);
       loadLocalData();
@@ -633,6 +683,9 @@ export default function NextFlight() {
 
   const nextDutyIndex = getNextDutyIndex(allFlights);
   const isViewingNextDuty = currentIndex === nextDutyIndex;
+  const shouldShowNextDutyButton = viewMode === 'compact' ?
+    !isCompactNextDutyVisible :
+    !isViewingNextDuty;
   const slideIndexes = [currentIndex - 1, currentIndex, currentIndex + 1];
   const trackTransition = isDragging || skipSwipeTransition ?
     'none' :
@@ -699,7 +752,9 @@ export default function NextFlight() {
               nextDutyIndex={nextDutyIndex}
               visibleStart={compactStart}
               visibleEnd={compactEnd}
+              focusNextDutySignal={compactNextDutyFocusSignal}
               onSelectFlight={openFlightFromList}
+              onNextDutyVisibilityChange={setIsCompactNextDutyVisible}
               onShowEarlier={() => setCompactPastCount(count => count + COMPACT_PAGE_SIZE)}
               onShowMore={() => setCompactFutureCount(count => count + COMPACT_PAGE_SIZE)}
             />
@@ -754,13 +809,13 @@ export default function NextFlight() {
             </Box>
           )}
 
-          {!isViewingNextDuty && (
+          {shouldShowNextDutyButton && (
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <Button
                 variant="outlined"
                 size="small"
                 startIcon={<MyLocationIcon fontSize="small" />}
-                onClick={goToNextDuty}
+                onClick={viewMode === 'compact' ? focusNextDutyInCompactList : goToNextDuty}
                 sx={{ borderRadius: 1, textTransform: 'none' }}
               >
                 Next duty

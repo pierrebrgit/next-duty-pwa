@@ -48,6 +48,7 @@ const defaultProfile: UserProfile = {
   nickname: '',
   base: 'ORY',
   webcal: '',
+  flights: [],
   rotations: [],
   setup: 1,
   position: 'Flight crew'
@@ -98,7 +99,11 @@ export default function Settings() {
           },
         }
       );
-      const updatedProfile = { ...profile, rotations: roster.rotations };
+      const updatedProfile = {
+        ...profile,
+        flights: roster.flights || [],
+        rotations: roster.rotations,
+      };
       const metadata = setLastSyncTimestamp(buildSyncMetadata(roster));
       saveProfile(updatedProfile);
       setProfile(updatedProfile);

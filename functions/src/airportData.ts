@@ -6,6 +6,7 @@ export const ICAO_TO_IATA: Record<string, string> = {
   KEWR: "EWR",
   KLAX: "LAX",
   KMIA: "MIA",
+  CYUL: "YUL",
   LFBO: "TLS",
   LFPG: "CDG",
   MMUN: "CUN",

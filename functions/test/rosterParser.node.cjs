@@ -11,7 +11,7 @@ const event = (summary, location, start, end) => ({
   end: new Date(end),
 });
 
-test("processIcal converts ICAO airports and keeps complete rotations", () => {
+test("processIcal converts ICAO airports and returns canonical flights", () => {
   const roster = processIcal({
     outbound: event(
       "BF710",
@@ -28,7 +28,12 @@ test("processIcal converts ICAO airports and keeps complete rotations", () => {
   }, "ORY");
 
   assert.equal(roster.rotations.length, 1);
+  assert.equal(roster.flights.length, 2);
   assert.equal(roster.rotations[0].complete, true);
+  assert.deepEqual(
+    roster.flights.map((flight) => [flight.origin, flight.destination]),
+    [["ORY", "JIB"], ["JIB", "ORY"]]
+  );
   assert.deepEqual(
     roster.rotations[0].flights.map((flight) => [
       flight.origin,
@@ -49,6 +54,7 @@ test("processIcal preserves partial base departures", () => {
   }, "ORY");
 
   assert.equal(roster.rotations.length, 1);
+  assert.equal(roster.flights.length, 1);
   assert.equal(roster.rotations[0].complete, false);
   assert.equal(roster.rotations[0].flights[0].destination, "CHR");
 });
@@ -64,5 +70,21 @@ test("processIcal skips MEP events touching TLS or CDG", () => {
   }, "ORY");
 
   assert.equal(roster.rotations.length, 0);
+  assert.equal(roster.flights.length, 0);
   assert.equal(roster.unmatchedFlights.length, 0);
+});
+
+test("processIcal converts CYUL to YUL", () => {
+  const roster = processIcal({
+    flight: event(
+      "BF730",
+      "CYUL - LFPO",
+      "2026-06-15T08:00:00Z",
+      "2026-06-15T15:00:00Z"
+    ),
+  }, "YUL");
+
+  assert.equal(roster.flights.length, 1);
+  assert.equal(roster.flights[0].origin, "YUL");
+  assert.equal(roster.flights[0].destination, "ORY");
 });

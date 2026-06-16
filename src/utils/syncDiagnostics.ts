@@ -1,4 +1,5 @@
 import { Roster, SyncMetadata, SyncMetadataInput, UserProfile } from '../types';
+import { getRosterFlights } from './flights';
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return 'n/a';
@@ -33,7 +34,7 @@ const getWebcalHost = (webcal: string) => {
 };
 
 export const buildSyncMetadata = (roster: Roster): SyncMetadataInput => {
-  const flights = roster.rotations.flatMap(rotation => rotation.flights || []);
+  const flights = getRosterFlights(roster);
   const timestamps = flights
     .flatMap(flight => [flight.startDate, flight.endDate])
     .map(value => new Date(value).getTime())
@@ -44,9 +45,9 @@ export const buildSyncMetadata = (roster: Roster): SyncMetadataInput => {
 
   return {
     base: roster.base,
-    rotationCount: roster.rotations.length,
     flightCount: flights.length,
-    unmatchedFlightCount: roster.unmatchedFlights?.length || 0,
+    ungroupedFlightCount: roster.unmatchedFlights?.length || 0,
+    parserGroupCount: roster.rotations.length,
     periodStart,
     periodEnd,
   };
@@ -59,10 +60,7 @@ export const formatSyncPeriod = (metadata: SyncMetadata | null) => {
 
 export const formatSyncSummary = (metadata: SyncMetadata | null) => {
   if (!metadata) return 'No sync details';
-  const unmatched = metadata.unmatchedFlightCount ?
-    ` · ${metadata.unmatchedFlightCount} unmatched` :
-    '';
-  return `${metadata.flightCount} flights · ${metadata.rotationCount} rotations${unmatched}`;
+  return `${metadata.flightCount} displayed flights`;
 };
 
 export const formatSyncDiagnostic = (
@@ -78,8 +76,8 @@ export const formatSyncDiagnostic = (
     `Calendar host: ${getWebcalHost(profile.webcal || '')}`,
     `Last sync: ${formatDateTime(metadata?.syncedAt || lastSync)}`,
     `Roster period: ${formatSyncPeriod(metadata)}`,
-    `Flights: ${metadata?.flightCount ?? 'n/a'}`,
-    `Rotations: ${metadata?.rotationCount ?? 'n/a'}`,
-    `Unmatched flights: ${metadata?.unmatchedFlightCount ?? 'n/a'}`,
+    `Displayed flights: ${metadata?.flightCount ?? 'n/a'}`,
+    `Ungrouped parser items: ${metadata?.ungroupedFlightCount ?? 'n/a'}`,
+    `Parser groups: ${metadata?.parserGroupCount ?? 'n/a'}`,
   ].join('\n');
 };

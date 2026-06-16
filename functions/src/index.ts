@@ -257,8 +257,8 @@ export const getProfile = onRequest(async (req, res) => {
       >;
       const roster = processIcal(webEvents, base);
       console.log(
-        `Calendar processed: ${roster.rotations.length} rotations, ` +
-        `${roster.unmatchedFlights.length} unmatched flights`
+        `Calendar processed: ${roster.flights.length} flights, ` +
+        `${roster.unmatchedFlights.length} ungrouped parser items`
       );
       res.send(roster);
     } catch (error: unknown) {

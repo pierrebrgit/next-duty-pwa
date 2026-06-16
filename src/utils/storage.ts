@@ -1,4 +1,4 @@
-import { UserProfile, Rotation, SyncMetadata, SyncMetadataInput } from '../types';
+import { UserProfile, Flight, SyncMetadata, SyncMetadataInput } from '../types';
 
 const STORAGE_KEY = 'next_duty_profile';
 const SYNC_KEY = 'next_duty_last_sync';
@@ -24,10 +24,10 @@ export const clearProfile = () => {
   localStorage.removeItem(SYNC_METADATA_KEY);
 };
 
-export const updateRotations = (rotations: Rotation[]) => {
+export const updateFlights = (flights: Flight[]) => {
   const profile = loadProfile();
   if (profile) {
-    profile.rotations = rotations;
+    profile.flights = flights;
     saveProfile(profile);
     setLastSyncTimestamp();
   }
@@ -51,7 +51,17 @@ export const getLastSyncTimestamp = (): string | null => {
 export const getSyncMetadata = (): SyncMetadata | null => {
   try {
     const data = localStorage.getItem(SYNC_METADATA_KEY);
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    const parsed = JSON.parse(data);
+    return {
+      ...parsed,
+      ungroupedFlightCount:
+        parsed.ungroupedFlightCount ??
+        parsed.skippedItemCount ??
+        parsed.unmatchedFlightCount ??
+        0,
+      parserGroupCount: parsed.parserGroupCount ?? parsed.rotationCount,
+    };
   } catch {
     localStorage.removeItem(SYNC_METADATA_KEY);
     return null;

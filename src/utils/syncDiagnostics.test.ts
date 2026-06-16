@@ -4,6 +4,22 @@ import { buildSyncMetadata, formatSyncDiagnostic } from './syncDiagnostics';
 
 const roster: Roster = {
   base: 'ORY',
+  flights: [
+    {
+      origin: 'ORY',
+      destination: 'JIB',
+      flightNumber: '710',
+      startDate: '2026-06-15T08:00:00Z',
+      endDate: '2026-06-15T15:00:00Z',
+    },
+    {
+      origin: 'JIB',
+      destination: 'ORY',
+      flightNumber: '711',
+      startDate: '2026-06-17T08:00:00Z',
+      endDate: '2026-06-17T15:00:00Z',
+    },
+  ],
   rotations: [
     {
       startDate: '2026-06-15T08:00:00Z',
@@ -51,9 +67,9 @@ describe('syncDiagnostics', () => {
   it('builds roster sync metadata', () => {
     expect(buildSyncMetadata(roster)).toEqual({
       base: 'ORY',
-      rotationCount: 1,
       flightCount: 2,
-      unmatchedFlightCount: 1,
+      ungroupedFlightCount: 1,
+      parserGroupCount: 1,
       periodStart: '2026-06-15T08:00:00.000Z',
       periodEnd: '2026-06-17T15:00:00.000Z',
     });
@@ -67,6 +83,9 @@ describe('syncDiagnostics', () => {
     const diagnostic = formatSyncDiagnostic(profile, metadata, metadata.syncedAt);
 
     expect(diagnostic).toContain('Calendar host: cyberjet.frenchbee.com');
+    expect(diagnostic).toContain('Displayed flights: 2');
+    expect(diagnostic).toContain('Ungrouped parser items: 1');
+    expect(diagnostic).toContain('Parser groups: 1');
     expect(diagnostic).not.toContain('SECRET');
   });
 });

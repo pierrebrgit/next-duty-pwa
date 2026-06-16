@@ -17,6 +17,7 @@ export interface Rotation {
 
 export interface Roster {
   base: string;
+  flights: Flight[];
   rotations: Rotation[];
   unmatchedFlights: Flight[];
 }
@@ -133,6 +134,7 @@ export const processIcal = (
 
   return {
     base,
+    flights,
     rotations,
     unmatchedFlights,
   };
