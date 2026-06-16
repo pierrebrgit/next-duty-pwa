@@ -321,6 +321,7 @@ function CompactFlightList({
   const visibleFlights = flights.slice(visibleStart, visibleEnd);
   const hasEarlier = visibleStart > 0;
   const hasMore = visibleEnd < flights.length;
+  const nowMs = Date.now();
 
   useEffect(() => {
     if (!focusNextDutySignal) return;
@@ -376,6 +377,20 @@ function CompactFlightList({
             const arrivalTime = new Date(flight.endDate);
             const isSelected = index === currentIndex;
             const isNextDuty = index === nextDutyIndex;
+            const isPast = arrivalTime.getTime() < nowMs;
+            const accentColor = isNextDuty ?
+              'primary.main' :
+              isPast ? 'rgba(255,255,255,0.18)' : 'rgba(144,202,249,0.32)';
+            const rowBgcolor = isSelected ?
+              'rgba(25, 118, 210, 0.18)' :
+              isNextDuty ? 'rgba(25, 118, 210, 0.08)' :
+              isPast ? 'rgba(255,255,255,0.025)' :
+              'transparent';
+            const activeBgcolor = isSelected || isNextDuty ?
+              'rgba(25, 118, 210, 0.26)' :
+              isPast ? 'rgba(255,255,255,0.055)' : 'rgba(144,202,249,0.08)';
+            const primaryTextColor = isPast && !isNextDuty ? 'text.secondary' : 'text.primary';
+            const secondaryTextColor = isPast && !isNextDuty ? 'rgba(255,255,255,0.44)' : 'text.secondary';
 
             return (
               <Box
@@ -389,36 +404,48 @@ function CompactFlightList({
                   border: 0,
                   borderBottom: offset === visibleFlights.length - 1 && !hasMore ? 0 : 1,
                   borderColor: 'divider',
-                  bgcolor: isSelected ? 'rgba(25, 118, 210, 0.18)' : 'transparent',
+                  bgcolor: rowBgcolor,
                   color: 'inherit',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1.25,
                   minHeight: 58,
-                  px: 1.25,
+                  pl: 1.75,
+                  pr: 1.25,
                   py: 0.9,
+                  position: 'relative',
                   textAlign: 'left',
+                  '&::before': {
+                    bgcolor: accentColor,
+                    borderRadius: 1,
+                    bottom: 8,
+                    content: '""',
+                    left: 6,
+                    position: 'absolute',
+                    top: 8,
+                    width: 3,
+                  },
                   '&:active': {
-                    bgcolor: 'rgba(25, 118, 210, 0.26)',
+                    bgcolor: activeBgcolor,
                   },
                 }}
               >
                 <Box sx={{ width: 58, flex: '0 0 58px' }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.15, display: 'block' }}>
+                  <Typography variant="caption" sx={{ color: secondaryTextColor, lineHeight: 1.15, display: 'block' }}>
                     {compactDate(reportTime, flight.origin, isUTC)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.67rem' }}>
+                  <Typography variant="caption" sx={{ color: secondaryTextColor, fontSize: '0.67rem' }}>
                     {compactYear(reportTime, flight.origin, isUTC)}
                   </Typography>
                 </Box>
 
                 <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
                   <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700, flexShrink: 0 }}>
+                    <Typography variant="body2" sx={{ color: primaryTextColor, fontWeight: 700, flexShrink: 0 }}>
                       {formatFlightNumber(flight.flightNumber)}
                     </Typography>
-                    <Typography variant="body2" noWrap sx={{ fontWeight: 600, minWidth: 0 }}>
+                    <Typography variant="body2" noWrap sx={{ color: primaryTextColor, fontWeight: 600, minWidth: 0 }}>
                       {flight.origin} &#x2192; {flight.destination}
                     </Typography>
                     {isNextDuty && (
@@ -441,7 +468,7 @@ function CompactFlightList({
                       </Box>
                     )}
                   </Stack>
-                  <Typography variant="caption" color="text.secondary" noWrap>
+                  <Typography variant="caption" sx={{ color: secondaryTextColor }} noWrap>
                     Rep {hoursZoned(reportTime, flight.origin, isUTC)} · Dep {hoursZoned(departureTime, flight.origin, isUTC)} · Arr {hoursZoned(arrivalTime, flight.destination, isUTC)}
                   </Typography>
                 </Stack>
