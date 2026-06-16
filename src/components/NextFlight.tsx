@@ -288,6 +288,14 @@ const compactDate = (date: Date, airport: string, isUTC: boolean) => {
   });
 };
 
+const compactYear = (date: Date, airport: string, isUTC: boolean) => {
+  const zone = isUTC ? "UTC" : getAirportTimeZone(airport);
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    timeZone: zone,
+  });
+};
+
 function CompactFlightList({
   flights,
   isUTC,
@@ -390,7 +398,7 @@ function CompactFlightList({
                     {compactDate(reportTime, flight.origin, isUTC)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.67rem' }}>
-                    #{index + 1}
+                    {compactYear(reportTime, flight.origin, isUTC)}
                   </Typography>
                 </Box>
 
