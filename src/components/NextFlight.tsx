@@ -168,6 +168,7 @@ function FlightCard({
   const pickupTime = pickupOffsetMinutes === undefined ?
     null :
     new Date(depTime.getTime() + pickupOffsetMinutes * 60 * 1000);
+  const countdownStart = pickupTime || reportTime;
 
   return (
     <Card
@@ -188,7 +189,7 @@ function FlightCard({
           <IconButton disabled={displayIndex === allFlightsLength - 1} onClick={onNext}><NavigateNextIcon /></IconButton>
         </Stack>
 
-        <Typography variant="caption" display="block" align="center" sx={{ mb: 2, color: 'primary.main', fontWeight: 500 }}>{countdown(flight.startDate, flight.endDate)}</Typography>
+        <Typography variant="caption" display="block" align="center" sx={{ mb: 2, color: 'primary.main', fontWeight: 500 }}>{countdown(countdownStart, arrivalTime)}</Typography>
 
         <Box sx={{ minHeight: '220px' }}>
           <Timeline sx={{ p: 0, m: 0 }}>
