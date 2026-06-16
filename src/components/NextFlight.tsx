@@ -273,7 +273,6 @@ type CompactFlightListProps = {
   visibleEnd: number;
   focusNextDutySignal: number;
   onSelectFlight: (index: number) => void;
-  onNextDutyVisibilityChange: (visible: boolean) => void;
   onShowEarlier: () => void;
   onShowMore: () => void;
 };
@@ -305,51 +304,23 @@ function CompactFlightList({
   visibleEnd,
   focusNextDutySignal,
   onSelectFlight,
-  onNextDutyVisibilityChange,
   onShowEarlier,
   onShowMore,
 }: CompactFlightListProps) {
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const nextDutyRowRef = useRef<HTMLButtonElement | null>(null);
   const visibleFlights = flights.slice(visibleStart, visibleEnd);
   const hasEarlier = visibleStart > 0;
   const hasMore = visibleEnd < flights.length;
 
-  const updateNextDutyVisibility = useCallback(() => {
-    const container = scrollContainerRef.current;
-    const row = nextDutyRowRef.current;
-    if (!container || !row) {
-      onNextDutyVisibilityChange(false);
-      return;
-    }
-
-    const containerRect = container.getBoundingClientRect();
-    const rowRect = row.getBoundingClientRect();
-    onNextDutyVisibilityChange(
-      rowRect.bottom > containerRect.top && rowRect.top < containerRect.bottom
-    );
-  }, [onNextDutyVisibilityChange]);
-
-  useEffect(() => {
-    updateNextDutyVisibility();
-    window.addEventListener('resize', updateNextDutyVisibility);
-    return () => window.removeEventListener('resize', updateNextDutyVisibility);
-  }, [updateNextDutyVisibility, visibleStart, visibleEnd, flights.length]);
-
   useEffect(() => {
     if (!focusNextDutySignal) return;
-    nextDutyRowRef.current?.scrollIntoView({ block: 'center' });
-    window.requestAnimationFrame(updateNextDutyVisibility);
-  }, [focusNextDutySignal, updateNextDutyVisibility]);
+    nextDutyRowRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [focusNextDutySignal]);
 
   return (
     <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-        <Box
-          ref={scrollContainerRef}
-          onScroll={updateNextDutyVisibility}
-          sx={{ maxHeight: 'calc(100vh - 225px)', overflowY: 'auto' }}
-        >
+        <Box sx={{ maxHeight: 'calc(100vh - 225px)', overflowY: 'auto' }}>
           {hasEarlier && (
             <Box sx={{ px: 1, py: 0.75, borderBottom: 1, borderColor: 'divider' }}>
               <Button fullWidth size="small" onClick={onShowEarlier} sx={{ textTransform: 'none' }}>
@@ -463,7 +434,6 @@ export default function NextFlight() {
   const [compactPastCount, setCompactPastCount] = useState(COMPACT_INITIAL_PAST_COUNT);
   const [compactFutureCount, setCompactFutureCount] = useState(COMPACT_INITIAL_FUTURE_COUNT);
   const [compactNextDutyFocusSignal, setCompactNextDutyFocusSignal] = useState(0);
-  const [isCompactNextDutyVisible, setIsCompactNextDutyVisible] = useState(true);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncMetadata, setSyncMetadata] = useState<SyncMetadata | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
@@ -690,10 +660,6 @@ export default function NextFlight() {
   }
 
   const nextDutyIndex = getNextDutyIndex(allFlights);
-  const isViewingNextDuty = currentIndex === nextDutyIndex;
-  const shouldShowNextDutyButton = viewMode === 'compact' ?
-    !isCompactNextDutyVisible :
-    !isViewingNextDuty;
   const slideIndexes = [currentIndex - 1, currentIndex, currentIndex + 1];
   const trackTransition = isDragging || skipSwipeTransition ?
     'none' :
@@ -722,30 +688,51 @@ export default function NextFlight() {
         <Stack spacing={2} sx={{ width: '100%', maxWidth: '400px' }}>
           
           <Stack direction="row" justifyContent="center" alignItems="center" sx={{ position: 'relative', width: '100%', mb: 1 }}>
-            <IconButton 
-                onClick={handleQuickSync} 
-                disabled={syncing}
-                size="small" 
-                sx={{ position: 'absolute', left: 0 }}
-            >
-                {syncing ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
-            </IconButton>
-            
-            <Typography variant="h6" align="center" sx={{ fontSize: '1.1rem', fontWeight: 500 }}>{profile.nickname}'s duty</Typography>
-
             <IconButton
               onClick={() => setViewMode(mode => mode === 'card' ? 'compact' : 'card')}
               size="small"
               aria-label={viewMode === 'card' ? 'Show compact list' : 'Show card view'}
               title={viewMode === 'card' ? 'Compact list' : 'Card view'}
-              sx={{ position: 'absolute', right: 36 }}
+              sx={{ position: 'absolute', left: 0 }}
             >
               {viewMode === 'card' ? <ViewListIcon /> : <ViewCarouselIcon />}
+            </IconButton>
+
+            <IconButton
+              onClick={viewMode === 'compact' ? focusNextDutyInCompactList : goToNextDuty}
+              size="small"
+              aria-label="Go to next duty"
+              title="Next duty"
+              sx={{ position: 'absolute', left: 36 }}
+            >
+              <MyLocationIcon />
+            </IconButton>
+
+            <Typography
+              variant="h6"
+              align="center"
+              noWrap
+              sx={{ fontSize: '1.1rem', fontWeight: 500, maxWidth: 'calc(100% - 160px)' }}
+            >
+              {profile.nickname}'s duty
+            </Typography>
+
+            <IconButton
+                onClick={handleQuickSync}
+                disabled={syncing}
+                size="small"
+                aria-label="Refresh roster"
+                title="Refresh"
+                sx={{ position: 'absolute', right: 36 }}
+            >
+                {syncing ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
             </IconButton>
             
             <IconButton 
                 onClick={() => navigate("/settings")} 
                 size="small" 
+                aria-label="Open settings"
+                title="Settings"
                 sx={{ position: 'absolute', right: 0 }}
             >
                 <SettingsIcon />
@@ -762,7 +749,6 @@ export default function NextFlight() {
               visibleEnd={compactEnd}
               focusNextDutySignal={compactNextDutyFocusSignal}
               onSelectFlight={openFlightFromList}
-              onNextDutyVisibilityChange={setIsCompactNextDutyVisible}
               onShowEarlier={() => setCompactPastCount(count => count + COMPACT_PAGE_SIZE)}
               onShowMore={() => setCompactFutureCount(count => count + COMPACT_PAGE_SIZE)}
             />
@@ -814,20 +800,6 @@ export default function NextFlight() {
                   </Box>
                 ))}
               </Box>
-            </Box>
-          )}
-
-          {shouldShowNextDutyButton && (
-            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<MyLocationIcon fontSize="small" />}
-                onClick={viewMode === 'compact' ? focusNextDutyInCompactList : goToNextDuty}
-                sx={{ borderRadius: 1, textTransform: 'none' }}
-              >
-                Next duty
-              </Button>
             </Box>
           )}
 
