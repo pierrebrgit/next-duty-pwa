@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import Timeline from '@mui/lab/Timeline';
 import TimelineItem from '@mui/lab/TimelineItem';
@@ -113,6 +113,7 @@ const SWIPE_EDGE_MAX_OFFSET_PX = 44;
 const COMPACT_INITIAL_PAST_COUNT = 3;
 const COMPACT_INITIAL_FUTURE_COUNT = 20;
 const COMPACT_PAGE_SIZE = 20;
+const COMPACT_AUTO_LOAD_THRESHOLD_PX = 96;
 
 type TouchGesture = {
   x: number;
@@ -121,6 +122,12 @@ type TouchGesture = {
 };
 
 type ViewMode = 'card' | 'compact';
+
+type CompactScrollRestore = {
+  scrollHeight: number;
+  scrollTop: number;
+  visibleStart: number;
+};
 
 type FlightCardProps = {
   flight: Flight;
@@ -307,7 +314,10 @@ function CompactFlightList({
   onShowEarlier,
   onShowMore,
 }: CompactFlightListProps) {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const nextDutyRowRef = useRef<HTMLButtonElement | null>(null);
+  const pendingScrollRestoreRef = useRef<CompactScrollRestore | null>(null);
+  const loadingEarlierForStartRef = useRef<number | null>(null);
   const visibleFlights = flights.slice(visibleStart, visibleEnd);
   const hasEarlier = visibleStart > 0;
   const hasMore = visibleEnd < flights.length;
@@ -317,18 +327,48 @@ function CompactFlightList({
     nextDutyRowRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [focusNextDutySignal]);
 
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    const pendingRestore = pendingScrollRestoreRef.current;
+    if (!container || !pendingRestore) {
+      loadingEarlierForStartRef.current = null;
+      return;
+    }
+
+    if (visibleStart < pendingRestore.visibleStart) {
+      const addedHeight = container.scrollHeight - pendingRestore.scrollHeight;
+      container.scrollTop = pendingRestore.scrollTop + addedHeight;
+      pendingScrollRestoreRef.current = null;
+    }
+
+    loadingEarlierForStartRef.current = null;
+  }, [visibleStart]);
+
+  const handleCompactScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const container = event.currentTarget;
+    if (!hasEarlier ||
+        container.scrollTop > COMPACT_AUTO_LOAD_THRESHOLD_PX ||
+        loadingEarlierForStartRef.current === visibleStart) {
+      return;
+    }
+
+    pendingScrollRestoreRef.current = {
+      scrollHeight: container.scrollHeight,
+      scrollTop: container.scrollTop,
+      visibleStart,
+    };
+    loadingEarlierForStartRef.current = visibleStart;
+    onShowEarlier();
+  }, [hasEarlier, onShowEarlier, visibleStart]);
+
   return (
     <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-        <Box sx={{ maxHeight: 'calc(100vh - 225px)', overflowY: 'auto' }}>
-          {hasEarlier && (
-            <Box sx={{ px: 1, py: 0.75, borderBottom: 1, borderColor: 'divider' }}>
-              <Button fullWidth size="small" onClick={onShowEarlier} sx={{ textTransform: 'none' }}>
-                Show earlier
-              </Button>
-            </Box>
-          )}
-
+        <Box
+          ref={scrollContainerRef}
+          onScroll={handleCompactScroll}
+          sx={{ maxHeight: 'calc(100vh - 225px)', overflowY: 'auto' }}
+        >
           {visibleFlights.map((flight, offset) => {
             const index = visibleStart + offset;
             const reportTime = new Date(flight.startDate);
